@@ -4,9 +4,12 @@
 #include <stdio.h>
 
 #define TOK_LIST                                                               \
+  X(AMPER)                                                                     \
+  X(AND)                                                                       \
   X(ARROW)                                                                     \
   X(AUTO)                                                                      \
   X(ASTERISK)                                                                  \
+  X(BITOR)                                                                     \
   X(BREAK)                                                                     \
   X(CASE)                                                                      \
   X(CHAR)                                                                      \
@@ -19,9 +22,11 @@
   X(DECREM)                                                                    \
   X(DO)                                                                        \
   X(DOUBLE)                                                                    \
+  X(DQUOTE)                                                                    \
   X(ELSE)                                                                      \
   X(ENUM)                                                                      \
   X(EQUALS)                                                                    \
+  X(EQEQ)                                                                      \
   X(EXTERN)                                                                    \
   X(FLOAT)                                                                     \
   X(FLOATLIT)                                                                  \
@@ -42,16 +47,22 @@
   X(LONG)                                                                      \
   X(LPAREN)                                                                    \
   X(LT)                                                                        \
+  X(LSHIFT)                                                                    \
   X(MINUS)                                                                     \
   X(NOT)                                                                       \
+  X(NEQ)                                                                       \
+  X(NOR)                                                                       \
+  X(OR)                                                                        \
   X(PERIOD)                                                                    \
   X(PLUS)                                                                      \
+  X(QUOTE)                                                                     \
   X(RBRACE)                                                                    \
   X(RBRACKET)                                                                  \
   X(REGISTER)                                                                  \
   X(RESTRICT)                                                                  \
   X(RETURN)                                                                    \
   X(RPAREN)                                                                    \
+  X(RSHIFT)                                                                    \
   X(SEMI)                                                                      \
   X(SHORT)                                                                     \
   X(SIGNED)                                                                    \

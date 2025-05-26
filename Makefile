@@ -6,7 +6,6 @@ TEST:=test
 default: compile run
 
 compile:
-	mkdir build
 	$(CC) -c $(SRC)/libs/dynarray.c -o $(BUILD)/dynarray.o
 	$(CC) -c $(SRC)/tokens.c -o $(BUILD)/tokens.o
 	$(CC) $(SRC)/main.c $(BUILD)/tokens.o $(BUILD)/dynarray.o -o $(BUILD)/main

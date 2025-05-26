@@ -18,6 +18,21 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       ++i;
     }
 
+    // char lit
+    else if (buf[i] == '"') {
+      ++i;
+
+      size_t toksize = 1;
+      while (buf[i++] != '"')
+        ++toksize;
+
+      Token *ptr = (Token *)malloc(sizeof(Token));
+      ptr->type = STRINGLIT;
+      ptr->start = i - toksize;
+
+      dyn_push(toks, ptr);
+    }
+
     // check special char
     else if (ispunct(buf[i])) {
       Token *ptr = (Token *)malloc(sizeof(Token));
@@ -36,6 +51,9 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       case '-': {
         if (buf[i + 1] == '-') {
           ptr->type = DECREM;
+          ++i;
+        } else if (buf[i + 1] == '>') {
+          ptr->type = ARROW;
           ++i;
         } else
           ptr->type = MINUS;
@@ -83,7 +101,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '=': {
-        ptr->type = EQUALS;
+        if (buf[i + 1] == '=') {
+          ptr->type = EQEQ;
+          ++i;
+        } else
+          ptr->type = EQUALS;
 
       } break;
 
@@ -105,7 +127,9 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       case '>': {
         if (buf[i + 1] == '=') {
           ptr->type = GE;
-
+          ++i;
+        } else if (buf[i + 1] == '>') {
+          ptr->type = RSHIFT;
           ++i;
         } else {
           ptr->type = GT;
@@ -115,7 +139,9 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       case '<': {
         if (buf[i + 1] == '=') {
           ptr->type = LE;
-
+          ++i;
+        } else if (buf[i + 1] == '<') {
+          ptr->type = LSHIFT;
           ++i;
         } else {
           ptr->type = LT;
@@ -123,7 +149,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '!': {
-        ptr->type = NOT;
+        if (buf[i + 1] == '=') {
+          ptr->type = NEQ;
+          ++i;
+        } else
+          ptr->type = NOT;
 
       } break;
 
@@ -139,6 +169,29 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
       case '#': {
         ptr->type = HASH;
+
+      } break;
+
+      case '&': {
+        if (buf[i + 1] == '&') {
+          ptr->type = AND;
+          ++i;
+        } else
+          ptr->type = AMPER;
+
+      } break;
+
+      case '|': {
+        if (buf[i + 1] == '|') {
+          ptr->type = OR;
+          ++i;
+        } else
+          ptr->type = BITOR;
+
+      } break;
+
+      case '^': {
+        ptr->type = NOR;
 
       } break;
 
