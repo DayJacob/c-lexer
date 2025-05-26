@@ -195,8 +195,13 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
       } break;
 
+      case '?': {
+        ptr->type = QUESTION;
+
+      } break;
+
       default: {
-        fprintf(stderr, "Unrecognized token %c.\n", buf[i]);
+        fprintf(stderr, "Unrecognized token %c (position %lu).\n", buf[i], i);
         dyn_destroy(toks);
         exit(1);
       }
@@ -211,9 +216,10 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
     // alpha
     else if (isalpha(buf[i])) {
       size_t toksize = 0;
-      while (isalpha(buf[i++]))
+      while (isalnum(buf[i]) || buf[i] == '_') {
+        ++i;
         ++toksize;
-      --i;
+      }
 
       char *bufcmp = strndup((const char *)&buf[i - toksize], toksize);
 

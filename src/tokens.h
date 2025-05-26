@@ -56,6 +56,7 @@
   X(PERIOD)                                                                    \
   X(PLUS)                                                                      \
   X(QUOTE)                                                                     \
+  X(QUESTION)                                                                  \
   X(RBRACE)                                                                    \
   X(RBRACKET)                                                                  \
   X(REGISTER)                                                                  \
