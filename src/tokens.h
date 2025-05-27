@@ -9,6 +9,7 @@
   X(ARROW)                                                                     \
   X(AUTO)                                                                      \
   X(ASTERISK)                                                                  \
+  X(BACKSLASH)                                                                 \
   X(BITOR)                                                                     \
   X(BREAK)                                                                     \
   X(CASE)                                                                      \

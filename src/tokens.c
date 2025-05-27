@@ -3,6 +3,18 @@
 #include <ctype.h>
 #include <string.h>
 
+size_t getLineNo(char *buf, size_t len, size_t pos) {
+  assert(pos <= len, "Index out of bounds.");
+
+  size_t line = 1;
+  for (int i = 0; i <= pos; ++i) {
+    if (buf[i] == '\n')
+      ++line;
+  }
+
+  return line;
+}
+
 void tokenize(char *buf, dyn_array *toks, size_t len) {
   size_t i = 0;
 
@@ -28,6 +40,20 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
       Token *ptr = (Token *)malloc(sizeof(Token));
       ptr->type = STRINGLIT;
+      ptr->start = i - toksize;
+
+      dyn_push(toks, ptr);
+    }
+
+    else if (buf[i] == '\'') {
+      ++i;
+
+      size_t toksize = 1;
+      while (buf[i++] != '\'')
+        ++toksize;
+
+      Token *ptr = (Token *)malloc(sizeof(Token));
+      ptr->type = CHARLIT;
       ptr->start = i - toksize;
 
       dyn_push(toks, ptr);
@@ -200,8 +226,14 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
       } break;
 
+      case '\\': {
+        ptr->type = BACKSLASH;
+
+      } break;
+
       default: {
-        fprintf(stderr, "Unrecognized token %c (position %lu).\n", buf[i], i);
+        fprintf(stderr, "Unrecognized token %c (line %lu).\n", buf[i],
+                getLineNo(buf, len, i));
         dyn_destroy(toks);
         exit(1);
       }
@@ -363,7 +395,8 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
     // otherwise
     else {
-      fprintf(stderr, "Unrecognized token %c.\n", buf[i]);
+      fprintf(stderr, "Unrecognized token %c (line %lu).\n", buf[i],
+              getLineNo(buf, len, i));
       dyn_destroy(toks);
       exit(1);
     }
