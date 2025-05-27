@@ -1,3 +1,7 @@
+// From
+// https://github.com/jdah/minecraft-weekend/blob/master/src/world/chunkmesh.c
+// For testing use only
+
 #include "../state.h"
 #include "chunk.h"
 
