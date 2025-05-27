@@ -334,6 +334,8 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
       dyn_push(toks, ptr);
 
+      free(bufcmp);
+      bufcmp = NULL;
     }
 
     // digit
@@ -365,5 +367,15 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       dyn_destroy(toks);
       exit(1);
     }
+  }
+
+  dump(toks);
+}
+
+void freeTokens(dyn_array *toks) {
+  for (size_t i = 0; i < toks->len; ++i) {
+    Token *t = (Token *)dyn_get(toks, i);
+    free(t);
+    t = NULL;
   }
 }

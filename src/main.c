@@ -37,9 +37,9 @@ int main(int argc, char *argv[]) {
   }
 
   dyn_array *toks = dyn_init(fsize / 10);
-  tokenize(buf, toks, fsize);
 
-  dump(toks);
+  tokenize(buf, toks, fsize);
+  freeTokens(toks);
 
   dyn_destroy(toks);
 

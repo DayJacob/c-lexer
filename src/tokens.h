@@ -103,8 +103,9 @@ typedef struct {
 } Token;
 
 void tokenize(char *buf, dyn_array *toks, size_t len);
+void freeTokens(dyn_array *toks);
 
-static void dump(dyn_array *toks) {
+static inline void dump(dyn_array *toks) {
   for (size_t i = 0; i < toks->len; ++i) {
     Token *t = (Token *)dyn_get(toks, i);
     printf("%s ", TOK2STR(t->type));

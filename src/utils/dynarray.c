@@ -53,5 +53,8 @@ void *dyn_get(dyn_array *list, size_t idx) {
 
 void dyn_destroy(dyn_array *list) {
   free(list->el);
+  list->el = NULL;
+
   free(list);
+  list = NULL;
 }
