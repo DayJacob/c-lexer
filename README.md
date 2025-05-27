@@ -24,5 +24,5 @@ While the program is not unbearably slow for small C programs, the performance o
 
 To test the efficiency of memory usage (for both debug and release versions), `leaks` was used to assess the footprint of the binary when lexing the [test/chunkmesh.c](test/chunkmesh.c) file. The unoptimized binary left a physical footprint of 1752KB, while the most opitimized binary left a physical footprint of 1712KB. The program itself only allocates 14KB of memory using `malloc()` calls.
 
-[^1] Or rather, `newSize = ceil(1.5 * oldSize)`.
-[^2] See <https://www.youtube.com/watch?v=GZPqDvG615k> for further exploration of this topic.
+[^1]: Or rather, `newSize = ceil(1.5 * oldSize)`.
+[^2]: See <https://www.youtube.com/watch?v=GZPqDvG615k> for further exploration of this topic.
