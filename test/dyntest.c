@@ -1,4 +1,4 @@
-#include "../src/libs/dynarray.h"
+#include "../src/utils/dynarray.h"
 #include <stdio.h>
 
 #define assert(_e, _m)                                                         \

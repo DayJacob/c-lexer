@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "libs/dynarray.h"
 #include "tokens.h"
+#include "utils/dynarray.h"
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {

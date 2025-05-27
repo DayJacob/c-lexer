@@ -1,5 +1,5 @@
 #include "tokens.h"
-#include "libs/dynarray.h"
+#include "utils/dynarray.h"
 #include <ctype.h>
 #include <string.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "libs/dynarray.h"
+#include "utils/dynarray.h"
 #include <stdio.h>
 
 #define TOK_LIST                                                               \
