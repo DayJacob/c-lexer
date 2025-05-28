@@ -5,7 +5,7 @@ To compile and run the lexer on a short test program ([test.c](test.c)), run ```
 
 ## Dynamic Arrays
 
-Support for generic dynamic arrays has been added with the addition of [src/utils/dyn_array.h](src/utils/dyn_array.h). Testing for this module has been included in the test directory and can be run using `make test`.
+Support for generic dynamic arrays has been added with the addition of [src/utils/dynarray.h](src/utils/dynarray.h). Testing for this module has been included in the test directory and can be run using `make test`.
 
 Currently, the resize factor for my implementation of this structure is 1.5[^1], although I have seen performance improvement for resize factors closer to 2.[^2]
 
