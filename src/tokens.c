@@ -1,6 +1,7 @@
 #include "tokens.h"
 #include "utils/dynarray.h"
 #include <ctype.h>
+#include <stdbool.h>
 #include <string.h>
 
 size_t getLineNo(str buf, size_t len, size_t pos) {
@@ -415,10 +416,10 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
     // digit
     else if (isdigit(at(buf, i))) {
       size_t toksize = 0;
-      char isFloat = 0;
+      bool isFloat = false;
       while (isdigit(at(buf, i)) || at(buf, i) == '.') {
         if (at(buf, i) == '.')
-          isFloat = 1;
+          isFloat = true;
         ++toksize;
         ++i;
       }

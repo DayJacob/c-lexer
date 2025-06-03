@@ -1,0 +1,17 @@
+PRGM ::= FUNC_DECL PRGM | \epsilon
+
+FUNC_DECL ::= TYPE ident '(' PARAMS ')' '{' STMT_LIST '}'
+
+PARAMS ::= PARAM_LIST | \epsilon
+PARAM_LIST ::= PARAM ',' PARAM_LIST | PARAM
+PARAM ::= TYPE ident
+
+STMT_LIST ::= STMT STMT_LIST | \epsilon
+
+STMT ::= 'return' EXPR ';' | TYPE ident '=' EXPR ';'
+
+EXPR ::= NUM_LIT
+
+NUM_LIT ::= intlit | floatlit
+
+TYPE ::= 'int' | 'float' | 'char' | 'short' | 'long' | 'double'

@@ -56,11 +56,7 @@ int main(void) {
 
   assert(eval_tree(root) == 14, "Incorrect calculation result");
 
-  free(root->ast_binary_op.left->ast_binary_op.left);
-  free(root->ast_binary_op.left->ast_binary_op.right);
-  free(root->ast_binary_op.left);
-  free(root->ast_binary_op.right);
-  free(root);
+  ast_destroy(root);
 
   printf("ALL TESTS PASSED.\n");
   return 0;

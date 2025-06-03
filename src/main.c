@@ -40,17 +40,15 @@ int main(int argc, char *argv[]) {
   }
 
   dyn_array *toks = dyn_init(fsize / 10);
-  // ast_node *ast = NULL;
+  ast_node *ast = NULL;
 
-  str sbuf = (str){
-      .len = fsize,
-      .chars = buf,
-  };
-  tokenize(sbuf, toks, fsize);
-  // parse(toks, ast);
+  tokenize((str){.len = fsize, .chars = buf}, toks, fsize);
+  parse((str){.len = fsize, .chars = buf}, toks, &ast);
+
   freeTokens(toks);
 
   dyn_destroy(toks);
+  ast_destroy(ast);
 
   fclose(fp);
   free(buf);

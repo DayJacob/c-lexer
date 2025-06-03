@@ -125,3 +125,5 @@ static inline void dump(dyn_array *toks) {
   }
   printf("\n\n");
 }
+
+size_t getLineNo(str buf, size_t len, size_t pos);
