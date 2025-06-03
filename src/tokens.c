@@ -3,39 +3,39 @@
 #include <ctype.h>
 #include <string.h>
 
-size_t getLineNo(char *buf, size_t len, size_t pos) {
+size_t getLineNo(str buf, size_t len, size_t pos) {
   assert(pos <= len, "Index out of bounds.");
 
   size_t line = 1;
   for (int i = 0; i <= pos; ++i) {
-    if (buf[i] == '\n')
+    if (at(buf, i) == '\n')
       ++line;
   }
 
   return line;
 }
 
-void tokenize(char *buf, dyn_array *toks, size_t len) {
+void tokenize(str buf, dyn_array *toks, size_t len) {
   size_t i = 0;
 
   while (i < len) {
     // ignore comments
-    if (buf[i] == '/' && buf[i + 1] == '/') {
-      while (buf[i++] != '\n')
+    if (at(buf, i) == '/' && at(buf, i + 1) == '/') {
+      while (at(buf, i++) != '\n')
         ;
     }
 
     // ignore whitespace
-    else if (isspace(buf[i])) {
+    else if (isspace(at(buf, i))) {
       ++i;
     }
 
     // char lit
-    else if (buf[i] == '"') {
+    else if (at(buf, i) == '"') {
       ++i;
 
       size_t toksize = 1;
-      while (buf[i++] != '"')
+      while (at(buf, i++) != '"')
         ++toksize;
 
       Token *ptr = (Token *)malloc(sizeof(Token));
@@ -45,11 +45,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       dyn_push(toks, ptr);
     }
 
-    else if (buf[i] == '\'') {
+    else if (at(buf, i) == '\'') {
       ++i;
 
       size_t toksize = 1;
-      while (buf[i++] != '\'')
+      while (at(buf, i++) != '\'')
         ++toksize;
 
       Token *ptr = (Token *)malloc(sizeof(Token));
@@ -60,14 +60,17 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
     }
 
     // check special char
-    else if (ispunct(buf[i])) {
+    else if (ispunct(at(buf, i))) {
       Token *ptr = (Token *)malloc(sizeof(Token));
 
-      switch (buf[i]) {
+      switch (at(buf, i)) {
 
       case '+': {
-        if (buf[i + 1] == '+') {
+        if (at(buf, i + 1) == '+') {
           ptr->type = INCREM;
+          ++i;
+        } else if (at(buf, i + 1) == '=') {
+          ptr->type = PLUSEQ;
           ++i;
         } else
           ptr->type = PLUS;
@@ -75,11 +78,14 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '-': {
-        if (buf[i + 1] == '-') {
+        if (at(buf, i + 1) == '-') {
           ptr->type = DECREM;
           ++i;
-        } else if (buf[i + 1] == '>') {
+        } else if (at(buf, i + 1) == '>') {
           ptr->type = ARROW;
+          ++i;
+        } else if (at(buf, i + 1) == '=') {
+          ptr->type = MINUSEQ;
           ++i;
         } else
           ptr->type = MINUS;
@@ -87,14 +93,30 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '*': {
-        ptr->type = ASTERISK;
+        if (at(buf, i + 1) == '=') {
+          ptr->type = TIMESEQ;
+          ++i;
+        } else
+          ptr->type = ASTERISK;
 
       } break;
 
       case '/': {
-        ptr->type = SLASH;
+        if (at(buf, i + 1) == '=') {
+          ptr->type = DIVEQ;
+          ++i;
+        } else
+          ptr->type = SLASH;
 
       } break;
+
+      case '%': {
+        if (at(buf, i + 1) == '=') {
+          ptr->type = MODEQ;
+          ++i;
+        } else
+          ptr->type = MODULO;
+      }
 
       case '{': {
         ptr->type = LBRACE;
@@ -127,7 +149,7 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '=': {
-        if (buf[i + 1] == '=') {
+        if (at(buf, i + 1) == '=') {
           ptr->type = EQEQ;
           ++i;
         } else
@@ -151,11 +173,16 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '>': {
-        if (buf[i + 1] == '=') {
+        if (at(buf, i + 1) == '=') {
           ptr->type = GE;
           ++i;
-        } else if (buf[i + 1] == '>') {
-          ptr->type = RSHIFT;
+        } else if (at(buf, i + 1) == '>') {
+          if (at(buf, i + 2) == '=') {
+            ptr->type = RSHIFTEQ;
+            ++i;
+          } else
+            ptr->type = RSHIFT;
+
           ++i;
         } else {
           ptr->type = GT;
@@ -163,11 +190,16 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '<': {
-        if (buf[i + 1] == '=') {
+        if (at(buf, i + 1) == '=') {
           ptr->type = LE;
           ++i;
-        } else if (buf[i + 1] == '<') {
-          ptr->type = LSHIFT;
+        } else if (at(buf, i + 1) == '<') {
+          if (at(buf, i + 2) == '=') {
+            ptr->type = LSHIFTEQ;
+            ++i;
+          } else
+            ptr->type = LSHIFT;
+
           ++i;
         } else {
           ptr->type = LT;
@@ -175,7 +207,7 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '!': {
-        if (buf[i + 1] == '=') {
+        if (at(buf, i + 1) == '=') {
           ptr->type = NEQ;
           ++i;
         } else
@@ -199,8 +231,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '&': {
-        if (buf[i + 1] == '&') {
+        if (at(buf, i + 1) == '&') {
           ptr->type = AND;
+          ++i;
+        } else if (at(buf, i + 1) == '=') {
+          ptr->type = ANDEQ;
           ++i;
         } else
           ptr->type = AMPER;
@@ -208,8 +243,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '|': {
-        if (buf[i + 1] == '|') {
+        if (at(buf, i + 1) == '|') {
           ptr->type = OR;
+          ++i;
+        } else if (at(buf, i + 1) == '=') {
+          ptr->type = OREQ;
           ++i;
         } else
           ptr->type = BITOR;
@@ -217,7 +255,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       case '^': {
-        ptr->type = NOR;
+        if (at(buf, i + 1) == '=') {
+          ptr->type = XOREQ;
+          ++i;
+        } else
+          ptr->type = XOR;
 
       } break;
 
@@ -232,7 +274,7 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
       } break;
 
       default: {
-        fprintf(stderr, "Unrecognized token %c (line %lu).\n", buf[i],
+        fprintf(stderr, "Unrecognized token %c (line %lu).\n", at(buf, i),
                 getLineNo(buf, len, i));
         dyn_destroy(toks);
         exit(1);
@@ -246,14 +288,14 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
     }
 
     // alpha
-    else if (isalpha(buf[i])) {
+    else if (isalpha(at(buf, i))) {
       size_t toksize = 0;
-      while (isalnum(buf[i]) || buf[i] == '_') {
+      while (isalnum(at(buf, i)) || at(buf, i) == '_') {
         ++i;
         ++toksize;
       }
 
-      char *bufcmp = strndup((const char *)&buf[i - toksize], toksize);
+      char *bufcmp = dupl(buf, i - toksize, toksize);
 
       Token *ptr = (Token *)malloc(sizeof(Token));
 
@@ -371,11 +413,11 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
     }
 
     // digit
-    else if (isdigit(buf[i])) {
+    else if (isdigit(at(buf, i))) {
       size_t toksize = 0;
       char isFloat = 0;
-      while (isdigit(buf[i]) || buf[i] == '.') {
-        if (buf[i] == '.')
+      while (isdigit(at(buf, i)) || at(buf, i) == '.') {
+        if (at(buf, i) == '.')
           isFloat = 1;
         ++toksize;
         ++i;
@@ -395,7 +437,7 @@ void tokenize(char *buf, dyn_array *toks, size_t len) {
 
     // otherwise
     else {
-      fprintf(stderr, "Unrecognized token %c (line %lu).\n", buf[i],
+      fprintf(stderr, "Unrecognized token %c (line %lu).\n", at(buf, i),
               getLineNo(buf, len, i));
       dyn_destroy(toks);
       exit(1);

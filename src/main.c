@@ -3,8 +3,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "parser.h"
 #include "tokens.h"
+#include "utils/ast.h"
 #include "utils/dynarray.h"
+#include "utils/str.h"
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -37,8 +40,14 @@ int main(int argc, char *argv[]) {
   }
 
   dyn_array *toks = dyn_init(fsize / 10);
+  // ast_node *ast = NULL;
 
-  tokenize(buf, toks, fsize);
+  str sbuf = (str){
+      .len = fsize,
+      .chars = buf,
+  };
+  tokenize(sbuf, toks, fsize);
+  // parse(toks, ast);
   freeTokens(toks);
 
   dyn_destroy(toks);
