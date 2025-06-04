@@ -15,6 +15,11 @@
     return NULL;                                                               \
   }
 
+#define current_token() (Token *)dyn_get(toks, (*i))
+#define peek() (Token *)dyn_get(toks, (*i) + 1);
+#define consume() (Token *)dyn_get(toks, (*i)++)
+#define consume_discard() ++(*i)
+
 double parseNum(str buf, size_t i) {
   size_t len = 0;
   while (isdigit(at(buf, i)) || at(buf, i) == '.') {
@@ -51,8 +56,23 @@ bool isNumberLiteral(TokenType type) {
   return type == INTLIT || type == FLOATLIT;
 }
 
+ast_node *try_parse_param(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+  Token *front = consume();
+
+  if (!isType(front->type))
+    error_expected("type");
+
+  TokenType type = front->type;
+
+  front = consume();
+  if (front->type != IDENT)
+    error_expected("identifier");
+
+  return create_param(type, parseString(buf, front->start).chars);
+}
+
 ast_node *try_parse_factor(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
-  Token *front = (Token *)dyn_get(toks, (*i)++);
+  Token *front = consume();
 
   if (front->type == PLUS || front->type == MINUS) {
     ast_node *atom = NULL;
@@ -64,15 +84,42 @@ ast_node *try_parse_factor(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   } else if (isNumberLiteral(front->type))
     return create_num(parseNum(buf, front->start));
 
-  else if (front->type == IDENT)
-    return create_ident(parseString(buf, front->start).chars);
+  else if (front->type == IDENT) {
+    Token *next = current_token();
+    if (next->type != LPAREN)
+      return create_ident(parseString(buf, front->start).chars);
+
+    consume_discard();
+
+    ast_node *func = create_funccall(parseString(buf, front->start).chars);
+
+    front = current_token();
+    ast_node *expr = NULL;
+    if (front->type != RPAREN && (expr = try_parse_expr(buf, alloc, toks, i))) {
+      dyn_push(func->ast_func_call.args, expr);
+
+      front = consume();
+      while (front->type == COMMA &&
+             (expr = try_parse_expr(buf, alloc, toks, i))) {
+        dyn_push(func->ast_func_call.args, expr);
+        front = current_token();
+      }
+    }
+
+    if (front->type != RPAREN)
+      error_expected("\')\'");
+
+    consume_discard();
+
+    return func;
+  }
 
   else if (front->type == LPAREN) {
     ast_node *expr = NULL;
     if (!(expr = try_parse_expr(buf, alloc, toks, i)))
       error_expected("expression");
 
-    front = (Token *)dyn_get(toks, (*i)++);
+    front = consume();
     if (front->type != RPAREN)
       error_expected("\')\'");
 
@@ -87,16 +134,16 @@ ast_node *try_parse_term(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   if (!(lhs = try_parse_factor(buf, alloc, toks, i)))
     error_expected("factor expression");
 
-  Token *front = (Token *)dyn_get(toks, *i);
+  Token *front = current_token();
   while (front->type == ASTERISK || front->type == SLASH) {
-    (*i)++;
+    consume_discard();
     ast_node *rhs = NULL;
     if (!(rhs = try_parse_factor(buf, alloc, toks, i)))
       error_expected("factor expression");
 
     lhs = create_binop(lhs, rhs, (front->type == ASTERISK) ? OP_TIMES : OP_DIV);
 
-    front = (Token *)dyn_get(toks, *i);
+    front = current_token();
   }
 
   return lhs;
@@ -107,33 +154,33 @@ ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   if (!(lhs = try_parse_term(buf, alloc, toks, i)))
     error_expected("factor expression");
 
-  Token *front = (Token *)dyn_get(toks, *i);
+  Token *front = current_token();
   while (front->type == PLUS || front->type == MINUS) {
-    (*i)++;
+    consume_discard();
     ast_node *rhs = NULL;
     if (!(rhs = try_parse_term(buf, alloc, toks, i)))
       error_expected("factor expression");
 
     lhs = create_binop(lhs, rhs, (front->type == PLUS) ? OP_PLUS : OP_MINUS);
 
-    front = (Token *)dyn_get(toks, *i);
+    front = current_token();
   }
 
   return lhs;
 }
 
 ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
-  Token *front = (Token *)dyn_get(toks, (*i)++);
+  Token *front = consume();
 
   ast_node *stmt = NULL;
   if (isType(front->type)) {
-    front = (Token *)dyn_get(toks, (*i)++);
+    front = consume();
     if (front->type != IDENT)
       error_expected("identifier");
 
     str ident = parseString(buf, front->start);
 
-    front = (Token *)dyn_get(toks, (*i)++);
+    front = consume();
     if (front->type != EQUALS)
       error_expected("\'=\'");
 
@@ -141,7 +188,7 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
     if (!(expr = try_parse_expr(buf, alloc, toks, i)))
       error_expected("expression");
 
-    front = (Token *)dyn_get(toks, (*i)++);
+    front = consume();
     if (front->type != SEMI)
       error_expected("\';\'");
 
@@ -151,7 +198,7 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
     if (!(expr = try_parse_expr(buf, alloc, toks, i)))
       error_expected("expression");
 
-    front = (Token *)dyn_get(toks, (*i)++);
+    front = consume();
     if (front->type != SEMI)
       error_expected("\';\'");
 
@@ -163,42 +210,56 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
 
 ast_node *try_parse_funcdecl(str buf, arena_t alloc, dyn_array *toks,
                              size_t *i) {
-  Token *front = (Token *)dyn_get(toks, (*i)++);
-  Token *next = NULL;
+  Token *front = consume();
 
   if (!isType(front->type))
     error_expected("type");
 
   TokenType ret_type = front->type;
 
-  front = (Token *)dyn_get(toks, (*i)++);
+  front = consume();
   if (front->type != IDENT)
     error_expected("identifier");
 
   str ident = parseString(buf, front->start);
+  ast_node *func = create_funcdecl(ret_type, ident.chars);
 
-  front = (Token *)dyn_get(toks, (*i)++);
-  next = (Token *)dyn_get(toks, (*i)++);
-  // TODO: Add support for function parameters
-  if (front->type != LPAREN || next->type != RPAREN)
-    error_expected("\'()\'");
+  front = consume();
+  if (front->type != LPAREN)
+    error_expected("\'(\'");
 
-  front = (Token *)dyn_get(toks, (*i)++);
+  front = current_token();
+  ast_node *param = NULL;
+  if (front->type != RPAREN && (param = try_parse_param(buf, alloc, toks, i))) {
+    dyn_push(func->ast_func_decl.params, param);
+
+    front = consume();
+    while (front->type == COMMA &&
+           (param = try_parse_param(buf, alloc, toks, i))) {
+      dyn_push(func->ast_func_decl.params, param);
+      front = current_token();
+    }
+  }
+
+  if (front->type != RPAREN)
+    error_expected("\')\'");
+
+  consume_discard();
+
+  front = consume();
   if (front->type != LBRACE)
     error_expected("\'{\'");
-
-  ast_node *func = create_funcdecl(ret_type, ident.chars);
 
   ast_node *stmt = NULL;
   while ((stmt = try_parse_stmt(buf, alloc, toks, i))) {
     dyn_push(func->ast_func_decl.stmts, stmt);
 
-    front = (Token *)dyn_get(toks, *i);
+    front = current_token();
     if (front->type == RBRACE)
       break;
   }
 
-  ++(*i);
+  consume_discard();
 
   return func;
 }

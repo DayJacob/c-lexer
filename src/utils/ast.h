@@ -12,7 +12,9 @@ typedef enum {
   EXPR_BINOP,
   EXPR_UNOP,
   NUM_LIT,
-  IDENT_NODE
+  IDENT_NODE,
+  PARAM,
+  FUNC_CALL
 } NodeType;
 typedef enum { OP_PLUS, OP_MINUS, OP_TIMES, OP_DIV } BinOpType;
 typedef enum { OP_LOGNEG, NUM_NEG, NUM_POS } UnOpType;
@@ -51,6 +53,16 @@ typedef struct ast_node {
       char *ident;
       struct ast_node *expr;
     } ast_stmt;
+
+    struct {
+      TokenType param_type;
+      char *ident;
+    } ast_param;
+
+    struct {
+      char *ident;
+      dyn_array *args;
+    } ast_func_call;
   };
 } ast_node;
 
@@ -61,6 +73,8 @@ ast_node *create_ident(char *ident);
 ast_node *create_prgm();
 ast_node *create_funcdecl(TokenType ret, char *ident);
 ast_node *create_stmt(StmtType type, char *ident, ast_node *expr);
+ast_node *create_param(TokenType type, char *ident);
+ast_node *create_funccall(char *ident);
 
 void ast_traverse(ast_node *root);
 void ast_destroy(ast_node *root);

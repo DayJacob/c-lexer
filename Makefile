@@ -21,14 +21,14 @@ release: build run
 build: $(BUILD)/clexer
 
 $(BUILD)/clexer: $(OBJ_FILES)
-	@$(CC) $(COMPILE_FLAGS) -o $(BUILD)/clexer $^
+	@$(CC) $(COMPILE_FLAGS) -o $(BUILD)/minic $^
 
 $(BUILD)/obj/%.o: $(SRC)/%.c
 	@mkdir -p $(@D)
 	$(CC) $(COMPILE_FLAGS) -c -o $@ $<
 
 run:
-	./$(BUILD)/clexer simpletest.c
+	./$(BUILD)/minic simpletest.c
 
 test: COMPILE_FLAGS +=-O3
 test:
@@ -41,6 +41,6 @@ test:
 
 clean:
 	rm -rf $(BUILD)/obj/*
-	rm -r $(BUILD)/clexer
-	rm -r $(BUILD)/clexer.dSYM
+	rm -r $(BUILD)/minic
+	rm -r $(BUILD)/minic.dSYM
 

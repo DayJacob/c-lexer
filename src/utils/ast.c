@@ -58,6 +58,22 @@ ast_node *create_stmt(StmtType type, char *ident, ast_node *expr) {
   return node;
 }
 
+ast_node *create_param(TokenType type, char *ident) {
+  ast_node *node = (ast_node *)malloc(sizeof(ast_node));
+  node->type = PARAM;
+  node->ast_param.param_type = type;
+  node->ast_param.ident = ident;
+  return node;
+}
+
+ast_node *create_funccall(char *ident) {
+  ast_node *node = (ast_node *)malloc(sizeof(ast_node));
+  node->type = FUNC_CALL;
+  node->ast_func_call.ident = ident;
+  node->ast_func_call.args = dyn_init(2);
+  return node;
+}
+
 void ast_traverse(ast_node *root) {
   if (!root)
     return;
@@ -152,8 +168,10 @@ void ast_destroy(ast_node *root) {
     } else if (curr->type == EXPR_UNOP) {
       dyn_push(stack, curr->ast_unary_op.right);
     } else if (curr->type == FUNC_DECL) {
-      dyn_destroy(curr->ast_func_decl.params); // TODO: Figure out how to handle
-                                               // params in the syntax tree
+      for (size_t i = 0; i < curr->ast_func_decl.params->len; ++i)
+        dyn_push(stack, dyn_get(curr->ast_func_decl.params, i));
+
+      dyn_destroy(curr->ast_func_decl.params);
 
       for (size_t i = 0; i < curr->ast_func_decl.stmts->len; ++i)
         dyn_push(stack, dyn_get(curr->ast_func_decl.stmts, i));
@@ -173,6 +191,17 @@ void ast_destroy(ast_node *root) {
         free(curr->ast_stmt.ident);
     } else if (curr->type == IDENT_NODE)
       free(curr->ident);
+
+    else if (curr->type == PARAM)
+      free(curr->ast_param.ident);
+
+    else if (curr->type == FUNC_CALL) {
+      for (size_t i = 0; i < curr->ast_func_call.args->len; ++i)
+        dyn_push(stack, dyn_get(curr->ast_func_call.args, i));
+
+      dyn_destroy(curr->ast_func_call.args);
+      free(curr->ast_func_call.ident);
+    }
   }
 
   while (order->len > 0) {

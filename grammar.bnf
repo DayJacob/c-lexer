@@ -8,12 +8,15 @@ PARAM ::= TYPE ident
 
 STMT_LIST ::= STMT STMT_LIST | \epsilon
 
-STMT ::= 'return' EXPR ';' | TYPE ident '=' EXPR ';'
+STMT ::= 'return' EXPR ';' | TYPE ident '=' EXPR ';' | EXPR ';'
 
-EXPR ::= TERM | TERM '+' EXPR | TERM '-' EXPR
+EXPR ::= TERM | TERM '+' EXPR | TERM '-' EXPR 
 TERM ::= FACTOR | FACTOR '*' TERM | FACTOR '/' TERM
 FACTOR ::= '+' ATOM | '-' ATOM
-ATOM ::= NUM_LIT | ident | '(' EXPR ')'
+ATOM ::= NUM_LIT | ident | '(' EXPR ')' | ident '(' ARGS ')'
+
+ARGS ::= ARG_LIST | \epsilon
+ARG_LIST ::= EXPR ',' ARG_LIST | EXPR
 
 NUM_LIT ::= intlit | floatlit
 

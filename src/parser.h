@@ -13,6 +13,7 @@ str parseString(str, size_t);
 bool isType(TokenType);
 bool isNumberLiteral(TokenType);
 
+ast_node *try_parse_param(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_factor(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_term(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_expr(str, arena_t, dyn_array *, size_t *);
