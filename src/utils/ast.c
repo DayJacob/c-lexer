@@ -171,7 +171,8 @@ void ast_destroy(ast_node *root) {
 
       if (curr->ast_stmt.type == VAR_DECL)
         free(curr->ast_stmt.ident);
-    }
+    } else if (curr->type == IDENT_NODE)
+      free(curr->ident);
   }
 
   while (order->len > 0) {

@@ -39,7 +39,7 @@ void dyn_push(dyn_array *list, void *item) {
 void *dyn_pop(dyn_array *list) {
   void *temp = list->el[list->len - 1];
 
-  list->el = realloc(list->el, sizeof(*list->el) * (list->len - 1));
+  // list->el = realloc(list->el, sizeof(*list->el) * (list->len - 1));
   list->len--;
 
   return temp;

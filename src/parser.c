@@ -175,7 +175,7 @@ ast_node *try_parse_funcdecl(str buf, arena_t alloc, dyn_array *toks,
   if (front->type != IDENT)
     error_expected("identifier");
 
-  str ident = parseString(buf, *i);
+  str ident = parseString(buf, front->start);
 
   front = (Token *)dyn_get(toks, (*i)++);
   next = (Token *)dyn_get(toks, (*i)++);
