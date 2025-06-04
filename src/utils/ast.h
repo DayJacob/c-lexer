@@ -5,7 +5,15 @@
 #include "dynarray.h"
 #include <stdlib.h>
 
-typedef enum { PRGM, FUNC_DECL, STMT, EXPR_BINOP, EXPR_UNOP, NUM_LIT } NodeType;
+typedef enum {
+  PRGM,
+  FUNC_DECL,
+  STMT,
+  EXPR_BINOP,
+  EXPR_UNOP,
+  NUM_LIT,
+  IDENT_NODE
+} NodeType;
 typedef enum { OP_PLUS, OP_MINUS, OP_TIMES, OP_DIV } BinOpType;
 typedef enum { OP_LOGNEG, NUM_NEG, NUM_POS } UnOpType;
 typedef enum { STMT_RET, VAR_DECL } StmtType;
@@ -47,9 +55,12 @@ typedef struct ast_node {
 } ast_node;
 
 ast_node *create_binop(ast_node *left, ast_node *right, BinOpType op);
+ast_node *create_unop(ast_node *right, UnOpType);
 ast_node *create_num(double num);
+ast_node *create_ident(char *ident);
 ast_node *create_prgm();
 ast_node *create_funcdecl(TokenType ret, char *ident);
 ast_node *create_stmt(StmtType type, char *ident, ast_node *expr);
 
+void ast_traverse(ast_node *root);
 void ast_destroy(ast_node *root);

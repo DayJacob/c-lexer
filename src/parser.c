@@ -1,18 +1,17 @@
 #include "parser.h"
 #include "tokens.h"
-#include "utils/arena.h"
 #include "utils/ast.h"
 #include "utils/dynarray.h"
 #include "utils/str.h"
 #include <ctype.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
 #define error_expected(_m)                                                     \
   {                                                                            \
+    Token *curr = (Token *)dyn_get(toks, (*i));                                \
     fprintf(stderr, "Expected %s on line %lu\n", _m,                           \
-            getLineNo(buf, buf.len, *i));                                      \
+            getLineNo(buf, buf.len, curr->start));                             \
     return NULL;                                                               \
   }
 
@@ -45,20 +44,82 @@ str parseString(str buf, size_t i) {
 
 bool isType(TokenType type) {
   return type == INT || type == FLOAT || type == CHAR || type == SHORT ||
-         type == DOUBLE || type == LONG;
+         type == DOUBLE || type == LONG || type == VOID;
 }
 
 bool isNumberLiteral(TokenType type) {
   return type == INTLIT || type == FLOATLIT;
 }
 
-ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+ast_node *try_parse_factor(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   Token *front = (Token *)dyn_get(toks, (*i)++);
 
-  if (isNumberLiteral(front->type))
-    return create_num(parseNum(buf, *i));
+  if (front->type == PLUS || front->type == MINUS) {
+    ast_node *atom = NULL;
+    if (!(atom = try_parse_factor(buf, alloc, toks, i)))
+      error_expected("atomic expression");
+
+    return create_unop(atom, (front->type == MINUS) ? NUM_NEG : NUM_POS);
+
+  } else if (isNumberLiteral(front->type))
+    return create_num(parseNum(buf, front->start));
+
+  else if (front->type == IDENT)
+    return create_ident(parseString(buf, front->start).chars);
+
+  else if (front->type == LPAREN) {
+    ast_node *expr = NULL;
+    if (!(expr = try_parse_expr(buf, alloc, toks, i)))
+      error_expected("expression");
+
+    front = (Token *)dyn_get(toks, (*i)++);
+    if (front->type != RPAREN)
+      error_expected("\')\'");
+
+    return expr;
+  }
 
   return NULL;
+}
+
+ast_node *try_parse_term(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+  ast_node *lhs = NULL;
+  if (!(lhs = try_parse_factor(buf, alloc, toks, i)))
+    error_expected("factor expression");
+
+  Token *front = (Token *)dyn_get(toks, *i);
+  while (front->type == ASTERISK || front->type == SLASH) {
+    (*i)++;
+    ast_node *rhs = NULL;
+    if (!(rhs = try_parse_factor(buf, alloc, toks, i)))
+      error_expected("factor expression");
+
+    lhs = create_binop(lhs, rhs, (front->type == ASTERISK) ? OP_TIMES : OP_DIV);
+
+    front = (Token *)dyn_get(toks, *i);
+  }
+
+  return lhs;
+}
+
+ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+  ast_node *lhs = NULL;
+  if (!(lhs = try_parse_term(buf, alloc, toks, i)))
+    error_expected("factor expression");
+
+  Token *front = (Token *)dyn_get(toks, *i);
+  while (front->type == PLUS || front->type == MINUS) {
+    (*i)++;
+    ast_node *rhs = NULL;
+    if (!(rhs = try_parse_term(buf, alloc, toks, i)))
+      error_expected("factor expression");
+
+    lhs = create_binop(lhs, rhs, (front->type == PLUS) ? OP_PLUS : OP_MINUS);
+
+    front = (Token *)dyn_get(toks, *i);
+  }
+
+  return lhs;
 }
 
 ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
@@ -70,7 +131,7 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
     if (front->type != IDENT)
       error_expected("identifier");
 
-    str ident = parseString(buf, *i);
+    str ident = parseString(buf, front->start);
 
     front = (Token *)dyn_get(toks, (*i)++);
     if (front->type != EQUALS)
@@ -163,6 +224,8 @@ void parse(str buf, dyn_array *toks, ast_node **ast) {
   arena_t alloc = arena_init(1024 * 4);
 
   *ast = try_parse_prgm(buf, alloc, toks);
+
+  ast_traverse(*ast);
 
   arena_destroy(&alloc);
 }

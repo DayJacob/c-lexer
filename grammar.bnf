@@ -10,8 +10,11 @@ STMT_LIST ::= STMT STMT_LIST | \epsilon
 
 STMT ::= 'return' EXPR ';' | TYPE ident '=' EXPR ';'
 
-EXPR ::= NUM_LIT
+EXPR ::= TERM | TERM '+' EXPR | TERM '-' EXPR
+TERM ::= FACTOR | FACTOR '*' TERM | FACTOR '/' TERM
+FACTOR ::= '+' ATOM | '-' ATOM
+ATOM ::= NUM_LIT | ident | '(' EXPR ')'
 
 NUM_LIT ::= intlit | floatlit
 
-TYPE ::= 'int' | 'float' | 'char' | 'short' | 'long' | 'double'
+TYPE ::= 'int' | 'float' | 'char' | 'short' | 'long' | 'double' | 'void'
