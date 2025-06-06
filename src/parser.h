@@ -16,8 +16,10 @@ bool isNumberLiteral(TokenType);
 ast_node *try_parse_param(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_factor(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_term(str, arena_t, dyn_array *, size_t *);
+ast_node *try_parse_cond(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_expr(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_stmt(str, arena_t, dyn_array *, size_t *);
+ast_node *try_parse_scope(char *, str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_funcdecl(str, arena_t, dyn_array *, size_t *);
 ast_node *try_parse_prgm(str, arena_t, dyn_array *);
 

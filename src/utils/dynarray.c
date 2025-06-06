@@ -7,7 +7,7 @@ void dyn_resize(dyn_array *list) {
   list->cap = (size_t)ceil(list->len * 3.0 / 2.0);
   list->el = realloc(list->el, sizeof(*list->el) * list->cap);
 
-  printf("RESIZE\n");
+  // printf("RESIZE\n");
 }
 
 dyn_array *dyn_init(size_t c) {

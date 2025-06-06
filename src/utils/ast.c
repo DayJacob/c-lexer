@@ -39,13 +39,13 @@ ast_node *create_prgm() {
   return node;
 }
 
-ast_node *create_funcdecl(TokenType ret, char *ident) {
+ast_node *create_funcdecl(TokenType ret, char *ident, ast_node *scope) {
   ast_node *node = (ast_node *)malloc(sizeof(ast_node));
   node->type = FUNC_DECL;
   node->ast_func_decl.ret_type = ret;
   node->ast_func_decl.ident = ident;
   node->ast_func_decl.params = dyn_init(2);
-  node->ast_func_decl.stmts = dyn_init(4);
+  node->ast_func_decl.scope = scope;
   return node;
 }
 
@@ -74,6 +74,30 @@ ast_node *create_funccall(char *ident) {
   return node;
 }
 
+ast_node *create_scope(char *ident) {
+  ast_node *node = (ast_node *)malloc(sizeof(ast_node));
+  node->type = SCOPE;
+  node->ast_scope.ident = ident;
+  node->ast_scope.stmts = dyn_init(4);
+  return node;
+}
+
+ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt) {
+  ast_node *node = (ast_node *)malloc(sizeof(ast_node));
+  node->type = IF_STMT;
+  node->ast_if_stmt.pred = pred;
+  node->ast_if_stmt.scope = scope;
+  node->ast_if_stmt.alt = alt;
+  return node;
+}
+
+ast_node *create_else_stmt(ast_node *scope) {
+  ast_node *node = (ast_node *)malloc(sizeof(ast_node));
+  node->type = ELSE_STMT;
+  node->ast_else_stmt.scope = scope;
+  return node;
+}
+
 void ast_traverse(ast_node *root) {
   if (!root)
     return;
@@ -87,8 +111,11 @@ void ast_traverse(ast_node *root) {
   } else if (root->type == FUNC_DECL) {
     printf("\tFUNC:\n");
 
-    for (size_t i = 0; i < root->ast_func_decl.stmts->len; ++i)
-      ast_traverse((ast_node *)dyn_get(root->ast_func_decl.stmts, i));
+    ast_traverse(root->ast_func_decl.scope);
+
+  } else if (root->type == SCOPE) {
+    for (size_t i = 0; i < root->ast_scope.stmts->len; ++i)
+      ast_traverse((ast_node *)dyn_get(root->ast_scope.stmts, i));
 
   } else if (root->type == STMT) {
     printf("\t\tSTMT:");
@@ -150,6 +177,15 @@ void ast_traverse(ast_node *root) {
     ast_traverse(root->ast_unary_op.right);
   } else if (root->type == IDENT_NODE)
     printf("\t\t\tIDENT: %s\n", root->ident);
+
+  else if (root->type == IF_STMT) {
+    printf("\t\tIF_STMT: \n");
+    ast_traverse(root->ast_if_stmt.pred);
+    ast_traverse(root->ast_if_stmt.scope);
+
+    if (root->ast_if_stmt.alt)
+      ast_traverse(root->ast_if_stmt.alt);
+  }
 }
 
 void ast_destroy(ast_node *root) {
@@ -162,45 +198,80 @@ void ast_destroy(ast_node *root) {
     curr = dyn_pop(stack);
     dyn_push(order, curr);
 
-    if (curr->type == EXPR_BINOP) {
+    switch (curr->type) {
+
+    case EXPR_BINOP: {
       dyn_push(stack, curr->ast_binary_op.left);
       dyn_push(stack, curr->ast_binary_op.right);
-    } else if (curr->type == EXPR_UNOP) {
+    } break;
+
+    case EXPR_UNOP: {
       dyn_push(stack, curr->ast_unary_op.right);
-    } else if (curr->type == FUNC_DECL) {
+    } break;
+
+    case FUNC_DECL: {
       for (size_t i = 0; i < curr->ast_func_decl.params->len; ++i)
         dyn_push(stack, dyn_get(curr->ast_func_decl.params, i));
 
       dyn_destroy(curr->ast_func_decl.params);
 
-      for (size_t i = 0; i < curr->ast_func_decl.stmts->len; ++i)
-        dyn_push(stack, dyn_get(curr->ast_func_decl.stmts, i));
+      dyn_push(stack, curr->ast_func_decl.scope);
 
-      dyn_destroy(curr->ast_func_decl.stmts);
       free(curr->ast_func_decl.ident);
-    } else if (curr->type == PRGM) {
+      curr->ast_func_decl.ident = NULL;
+    } break;
+
+    case SCOPE: {
+      for (size_t i = 0; i < curr->ast_scope.stmts->len; ++i)
+        dyn_push(stack, dyn_get(curr->ast_scope.stmts, i));
+
+      dyn_destroy(curr->ast_scope.stmts);
+    } break;
+
+    case PRGM: {
       for (size_t i = 0; i < curr->ast_prgm.func_decls->len; ++i)
         dyn_push(stack, dyn_get(curr->ast_prgm.func_decls, i));
 
       dyn_destroy(curr->ast_prgm.func_decls);
-    } else if (curr->type == STMT) {
+    } break;
+
+    case STMT: {
       if (curr->ast_stmt.expr)
         dyn_push(stack, curr->ast_stmt.expr);
 
       if (curr->ast_stmt.type == VAR_DECL)
         free(curr->ast_stmt.ident);
-    } else if (curr->type == IDENT_NODE)
+    } break;
+
+    case IDENT_NODE: {
       free(curr->ident);
 
-    else if (curr->type == PARAM)
+    } break;
+
+    case PARAM: {
       free(curr->ast_param.ident);
 
-    else if (curr->type == FUNC_CALL) {
+    } break;
+
+    case FUNC_CALL: {
       for (size_t i = 0; i < curr->ast_func_call.args->len; ++i)
         dyn_push(stack, dyn_get(curr->ast_func_call.args, i));
 
       dyn_destroy(curr->ast_func_call.args);
       free(curr->ast_func_call.ident);
+    } break;
+
+    case IF_STMT: {
+      dyn_push(stack, curr->ast_if_stmt.pred);
+      dyn_push(stack, curr->ast_if_stmt.scope);
+
+      if (curr->ast_if_stmt.alt)
+        dyn_push(stack, curr->ast_if_stmt.alt);
+
+    } break;
+
+    default:
+      break;
     }
   }
 

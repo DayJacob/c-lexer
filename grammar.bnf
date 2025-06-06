@@ -1,22 +1,31 @@
-PRGM ::= FUNC_DECL PRGM | \epsilon
+PRGM ::= FUNC_DECL*
 
-FUNC_DECL ::= TYPE ident '(' PARAMS ')' '{' STMT_LIST '}'
+FUNC_DECL ::= TYPE ident '(' PARAM_LIST? ')' SCOPE
 
-PARAMS ::= PARAM_LIST | \epsilon
-PARAM_LIST ::= PARAM ',' PARAM_LIST | PARAM
+SCOPE ::= '{' STMT* '}'
+
+PARAM_LIST ::= PARAM (',' PARAM)*
 PARAM ::= TYPE ident
 
-STMT_LIST ::= STMT STMT_LIST | \epsilon
+STMT ::= 'return' EXPR ';' 
+       | TYPE ident '=' EXPR ';' 
+       | EXPR ';'
+       | COND_STMT
+       | SCOPE
 
-STMT ::= 'return' EXPR ';' | TYPE ident '=' EXPR ';' | EXPR ';'
+COND_STMT ::= IF '(' EXPR ')' STMT (ELSE STMT)?
 
-EXPR ::= TERM | TERM '+' EXPR | TERM '-' EXPR 
-TERM ::= FACTOR | FACTOR '*' TERM | FACTOR '/' TERM
-FACTOR ::= '+' ATOM | '-' ATOM
-ATOM ::= NUM_LIT | ident | '(' EXPR ')' | ident '(' ARGS ')'
+EXPR ::= EQUALITY (('==' | '!=') EQUALITY)*
+EQUALITY ::= COND (('>' | '>=' | '<' | '<=') COND)*
+COND ::= TERM (('+' | '-') TERM)*
+TERM ::= FACTOR (('*' | '/') FACTOR)*
+FACTOR ::= ('+' | '-') ATOM
+ATOM ::= NUM_LIT 
+       | ident 
+       | '(' EXPR ')' 
+       | ident '(' ARG_LIST? ')'
 
-ARGS ::= ARG_LIST | \epsilon
-ARG_LIST ::= EXPR ',' ARG_LIST | EXPR
+ARG_LIST ::= EXPR (',' EXPR)*
 
 NUM_LIT ::= intlit | floatlit
 

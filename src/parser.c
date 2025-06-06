@@ -149,17 +149,17 @@ ast_node *try_parse_term(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
-ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+ast_node *try_parse_cond(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   ast_node *lhs = NULL;
   if (!(lhs = try_parse_term(buf, alloc, toks, i)))
-    error_expected("factor expression");
+    error_expected("terminal expression");
 
   Token *front = current_token();
   while (front->type == PLUS || front->type == MINUS) {
     consume_discard();
     ast_node *rhs = NULL;
     if (!(rhs = try_parse_term(buf, alloc, toks, i)))
-      error_expected("factor expression");
+      error_expected("terminal expression");
 
     lhs = create_binop(lhs, rhs, (front->type == PLUS) ? OP_PLUS : OP_MINUS);
 
@@ -169,11 +169,73 @@ ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
+ast_node *try_parse_equality(str buf, arena_t alloc, dyn_array *toks,
+                             size_t *i) {
+  ast_node *lhs = NULL;
+  if (!(lhs = try_parse_cond(buf, alloc, toks, i)))
+    error_expected("conditional expression");
+
+  Token *front = current_token();
+  while (front->type == GE || front->type == GT || front->type == LE ||
+         front->type == LT) {
+    consume_discard();
+    ast_node *rhs = NULL;
+    if (!(rhs = try_parse_cond(buf, alloc, toks, i)))
+      error_expected("conditional expression");
+
+    BinOpType op;
+    switch (front->type) {
+    case GE:
+      op = OP_GE;
+      break;
+    case GT:
+      op = OP_GT;
+      break;
+    case LE:
+      op = OP_LE;
+      break;
+    case LT:
+      op = OP_LT;
+      break;
+    default:
+      error_expected("valid operator");
+    }
+
+    lhs = create_binop(lhs, rhs, op);
+
+    front = current_token();
+  }
+
+  return lhs;
+}
+
+ast_node *try_parse_expr(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
+  ast_node *lhs = NULL;
+  if (!(lhs = try_parse_equality(buf, alloc, toks, i)))
+    error_expected("equality expression");
+
+  Token *front = current_token();
+  while (front->type == EQEQ || front->type == NEQ) {
+    consume_discard();
+    ast_node *rhs = NULL;
+    if (!(rhs = try_parse_equality(buf, alloc, toks, i)))
+      error_expected("equality expression");
+
+    lhs = create_binop(lhs, rhs, (front->type == EQEQ) ? OP_EQEQ : OP_NEQ);
+
+    front = current_token();
+  }
+
+  return lhs;
+}
+
 ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
-  Token *front = consume();
+  Token *front = current_token();
 
   ast_node *stmt = NULL;
   if (isType(front->type)) {
+    consume_discard();
+
     front = consume();
     if (front->type != IDENT)
       error_expected("identifier");
@@ -193,7 +255,10 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
       error_expected("\';\'");
 
     stmt = create_stmt(VAR_DECL, ident.chars, expr);
+
   } else if (front->type == RETURN) {
+    consume_discard();
+
     ast_node *expr = NULL;
     if (!(expr = try_parse_expr(buf, alloc, toks, i)))
       error_expected("expression");
@@ -203,9 +268,78 @@ ast_node *try_parse_stmt(str buf, arena_t alloc, dyn_array *toks, size_t *i) {
       error_expected("\';\'");
 
     stmt = create_stmt(STMT_RET, "", expr);
+
+  } else if (front->type == IF) {
+    consume_discard();
+
+    front = consume();
+    if (front->type != LPAREN)
+      error_expected("\'(\'");
+
+    ast_node *pred = NULL;
+    if (!(pred = try_parse_expr(buf, alloc, toks, i)))
+      error_expected("predicate");
+
+    front = consume();
+    if (front->type != RPAREN)
+      error_expected("\')\'");
+
+    ast_node *scope = NULL;
+    Token *next = current_token();
+    if (next->type == LBRACE)
+      scope = try_parse_scope("", buf, alloc, toks, i);
+    else
+      scope = try_parse_stmt(buf, alloc, toks, i);
+
+    if (!scope)
+      error_expected("scope or statement");
+
+    stmt = create_if_stmt(pred, scope, NULL);
+
+    front = current_token();
+    ast_node *alt = NULL;
+    if (front->type == ELSE) {
+      consume_discard();
+      next = current_token();
+      if (next->type == LBRACE)
+        alt = try_parse_scope("", buf, alloc, toks, i);
+      else
+        alt = try_parse_stmt(buf, alloc, toks, i);
+
+      if (!alt)
+        error_expected("else scope or statement");
+    }
+
+    stmt->ast_if_stmt.alt = alt;
+
+  } else if (front->type == LBRACE) {
+    if (!(stmt = try_parse_scope("", buf, alloc, toks, i)))
+      error_expected("scope");
   }
 
   return stmt;
+}
+
+ast_node *try_parse_scope(char *ident, str buf, arena_t alloc, dyn_array *toks,
+                          size_t *i) {
+  Token *front = consume();
+  if (front->type != LBRACE)
+    error_expected("\'{\'");
+
+  ast_node *scope = create_scope(ident);
+
+  ast_node *stmt = NULL;
+  while ((stmt = try_parse_stmt(buf, alloc, toks, i))) {
+    dyn_push(scope->ast_scope.stmts, stmt);
+
+    front = current_token();
+    if (front->type == RBRACE) {
+      consume_discard();
+      break;
+    }
+  }
+
+  return scope;
 }
 
 ast_node *try_parse_funcdecl(str buf, arena_t alloc, dyn_array *toks,
@@ -222,7 +356,7 @@ ast_node *try_parse_funcdecl(str buf, arena_t alloc, dyn_array *toks,
     error_expected("identifier");
 
   str ident = parseString(buf, front->start);
-  ast_node *func = create_funcdecl(ret_type, ident.chars);
+  ast_node *func = create_funcdecl(ret_type, ident.chars, NULL);
 
   front = consume();
   if (front->type != LPAREN)
@@ -246,20 +380,8 @@ ast_node *try_parse_funcdecl(str buf, arena_t alloc, dyn_array *toks,
 
   consume_discard();
 
-  front = consume();
-  if (front->type != LBRACE)
-    error_expected("\'{\'");
-
-  ast_node *stmt = NULL;
-  while ((stmt = try_parse_stmt(buf, alloc, toks, i))) {
-    dyn_push(func->ast_func_decl.stmts, stmt);
-
-    front = current_token();
-    if (front->type == RBRACE)
-      break;
-  }
-
-  consume_discard();
+  func->ast_func_decl.scope =
+      try_parse_scope(func->ast_func_decl.ident, buf, alloc, toks, i);
 
   return func;
 }
@@ -268,7 +390,7 @@ ast_node *try_parse_prgm(str buf, arena_t alloc, dyn_array *toks) {
   ast_node *ast = create_prgm();
 
   size_t i = 0;
-  while (i < toks->len) {
+  while (i + 1 < toks->len) {
     ast_node *func = NULL;
     if ((func = try_parse_funcdecl(buf, alloc, toks, &i))) {
       dyn_push(ast->ast_prgm.func_decls, func);

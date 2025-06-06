@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define max(a, b) ((((a) > (b)) ? (a) : (b)))
+
 size_t getLineNo(str buf, size_t len, size_t pos) {
   assert(pos <= len, "Index out of bounds.");
 
@@ -300,106 +302,106 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
 
       Token *ptr = (Token *)malloc(sizeof(Token));
 
-      if (!strncmp(bufcmp, "auto", toksize))
+      if (!strncmp(bufcmp, "auto", max(toksize, strlen("auto"))))
         ptr->type = AUTO;
 
-      else if (!strncmp(bufcmp, "break", toksize))
+      else if (!strncmp(bufcmp, "break", max(toksize, strlen("break"))))
         ptr->type = BREAK;
 
-      else if (!strncmp(bufcmp, "case", toksize))
+      else if (!strncmp(bufcmp, "case", max(toksize, strlen("case"))))
         ptr->type = CASE;
 
-      else if (!strncmp(bufcmp, "char", toksize))
+      else if (!strncmp(bufcmp, "char", max(toksize, strlen("char"))))
         ptr->type = CHAR;
 
-      else if (!strncmp(bufcmp, "const", toksize))
+      else if (!strncmp(bufcmp, "const", max(toksize, strlen("const"))))
         ptr->type = CONST;
 
-      else if (!strncmp(bufcmp, "continue", toksize))
+      else if (!strncmp(bufcmp, "continue", max(toksize, strlen("continue"))))
         ptr->type = CONTINUE;
 
-      else if (!strncmp(bufcmp, "default", toksize))
+      else if (!strncmp(bufcmp, "default", max(toksize, strlen("default"))))
         ptr->type = DEFAULT;
 
-      else if (!strncmp(bufcmp, "do", toksize))
+      else if (!strncmp(bufcmp, "do", max(toksize, strlen("do"))))
         ptr->type = DO;
 
-      else if (!strncmp(bufcmp, "double", toksize))
+      else if (!strncmp(bufcmp, "double", max(toksize, strlen("double"))))
         ptr->type = DOUBLE;
 
-      else if (!strncmp(bufcmp, "else", toksize))
+      else if (!strncmp(bufcmp, "else", max(toksize, strlen("else"))))
         ptr->type = ELSE;
 
-      else if (!strncmp(bufcmp, "enum", toksize))
+      else if (!strncmp(bufcmp, "enum", max(toksize, strlen("enum"))))
         ptr->type = ENUM;
 
-      else if (!strncmp(bufcmp, "extern", toksize))
+      else if (!strncmp(bufcmp, "extern", max(toksize, strlen("extern"))))
         ptr->type = EXTERN;
 
-      else if (!strncmp(bufcmp, "float", toksize))
+      else if (!strncmp(bufcmp, "float", max(toksize, strlen("float"))))
         ptr->type = FLOAT;
 
-      else if (!strncmp(bufcmp, "for", toksize))
+      else if (!strncmp(bufcmp, "for", max(toksize, strlen("for"))))
         ptr->type = FOR;
 
-      else if (!strncmp(bufcmp, "goto", toksize))
+      else if (!strncmp(bufcmp, "goto", max(toksize, strlen("goto"))))
         ptr->type = GOTO;
 
-      else if (!strncmp(bufcmp, "if", toksize))
+      else if (!strncmp(bufcmp, "if", max(toksize, strlen("if"))))
         ptr->type = IF;
 
-      else if (!strncmp(bufcmp, "inline", toksize))
+      else if (!strncmp(bufcmp, "inline", max(toksize, strlen("inline"))))
         ptr->type = INLINE;
 
-      else if (!strncmp(bufcmp, "int", toksize))
+      else if (!strncmp(bufcmp, "int", max(toksize, strlen("int"))))
         ptr->type = INT;
 
-      else if (!strncmp(bufcmp, "long", toksize))
+      else if (!strncmp(bufcmp, "long", max(toksize, strlen("long"))))
         ptr->type = LONG;
 
-      else if (!strncmp(bufcmp, "register", toksize))
+      else if (!strncmp(bufcmp, "register", max(toksize, strlen("register"))))
         ptr->type = REGISTER;
 
-      else if (!strncmp(bufcmp, "restrict", toksize))
+      else if (!strncmp(bufcmp, "restrict", max(toksize, strlen("restrict"))))
         ptr->type = RESTRICT;
 
-      else if (!strncmp(bufcmp, "return", toksize))
+      else if (!strncmp(bufcmp, "return", max(toksize, strlen("return"))))
         ptr->type = RETURN;
 
-      else if (!strncmp(bufcmp, "short", toksize))
+      else if (!strncmp(bufcmp, "short", max(toksize, strlen("short"))))
         ptr->type = SHORT;
 
-      else if (!strncmp(bufcmp, "signed", toksize))
+      else if (!strncmp(bufcmp, "signed", max(toksize, strlen("signed"))))
         ptr->type = SIGNED;
 
-      else if (!strncmp(bufcmp, "sizeof", toksize))
+      else if (!strncmp(bufcmp, "sizeof", max(toksize, strlen("sizeof"))))
         ptr->type = SIZEOF;
 
-      else if (!strncmp(bufcmp, "static", toksize))
+      else if (!strncmp(bufcmp, "static", max(toksize, strlen("static"))))
         ptr->type = STATIC;
 
-      else if (!strncmp(bufcmp, "struct", toksize))
+      else if (!strncmp(bufcmp, "struct", max(toksize, strlen("struct"))))
         ptr->type = STRUCT;
 
-      else if (!strncmp(bufcmp, "switch", toksize))
+      else if (!strncmp(bufcmp, "switch", max(toksize, strlen("switch"))))
         ptr->type = SWITCH;
 
-      else if (!strncmp(bufcmp, "typedef", toksize))
+      else if (!strncmp(bufcmp, "typedef", max(toksize, strlen("typedef"))))
         ptr->type = TYPEDEF;
 
-      else if (!strncmp(bufcmp, "union", toksize))
+      else if (!strncmp(bufcmp, "union", max(toksize, strlen("union"))))
         ptr->type = UNION;
 
-      else if (!strncmp(bufcmp, "unsigned", toksize))
+      else if (!strncmp(bufcmp, "unsigned", max(toksize, strlen("unsigned"))))
         ptr->type = UNSIGNED;
 
-      else if (!strncmp(bufcmp, "void", toksize))
+      else if (!strncmp(bufcmp, "void", max(toksize, strlen("void"))))
         ptr->type = VOID;
 
-      else if (!strncmp(bufcmp, "volatile", toksize))
+      else if (!strncmp(bufcmp, "volatile", max(toksize, strlen("volatile"))))
         ptr->type = VOLATILE;
 
-      else if (!strncmp(bufcmp, "while", toksize))
+      else if (!strncmp(bufcmp, "while", max(toksize, strlen("while"))))
         ptr->type = WHILE;
 
       else
