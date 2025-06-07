@@ -1,14 +1,12 @@
 #include "arena.h"
 #include "assert.h"
 
-arena_t arena_init(size_t size) {
-  arena_t arena = {0};
-  arena.memory = malloc(size);
-  assert(arena.memory != NULL, "Allocation failed");
+void arena_init(arena_t *arena, size_t size) {
+  arena->memory = malloc(size);
+  assert(arena->memory != NULL, "Allocation failed");
 
-  arena.cap = size;
-  arena.used = 0;
-  return arena;
+  arena->cap = size;
+  arena->used = 0;
 }
 
 void *arena_alloc(arena_t *arena, size_t size) {

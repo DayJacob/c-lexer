@@ -8,7 +8,9 @@ typedef struct {
   size_t used;
 } arena_t;
 
-arena_t arena_init(size_t size);
+extern arena_t alloc;
+
+void arena_init(arena_t *arena, size_t size);
 void *arena_alloc(arena_t *arena, size_t size);
 void arena_reset(arena_t *arena);
 void arena_destroy(arena_t *arena);

@@ -12,6 +12,11 @@ STMT ::= 'return' EXPR ';'
        | EXPR ';'
        | COND_STMT
        | SCOPE
+       | WHILE
+       | DO_WHILE
+
+WHILE ::= 'while' '(' EXPR ')' STMT
+DO_WHILE ::= 'do' STMT 'while' '(' EXPR ')' ';'
 
 COND_STMT ::= IF '(' EXPR ')' STMT (ELSE STMT)?
 

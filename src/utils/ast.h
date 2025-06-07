@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../tokens.h"
+#include "arena.h"
 #include "assert.h"
 #include "dynarray.h"
 #include <stdlib.h>
@@ -106,5 +107,4 @@ ast_node *create_scope(char *ident);
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt);
 ast_node *create_else_stmt(ast_node *scope);
 
-void ast_traverse(ast_node *root);
 void ast_destroy(ast_node *root);

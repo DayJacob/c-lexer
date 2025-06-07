@@ -3,11 +3,84 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "codegen.h"
 #include "parser.h"
 #include "tokens.h"
 #include "utils/ast.h"
 #include "utils/dynarray.h"
 #include "utils/str.h"
+
+void printTree(ast_node *root) {
+  if (!root)
+    return;
+
+  switch (root->type) {
+    case PRGM: {
+      printf("PRGM:\n");
+
+      for (size_t i = 0; i < root->ast_prgm.func_decls->len; ++i)
+        printTree((ast_node *)dyn_get(root->ast_prgm.func_decls, i));
+
+    } break;
+
+    case FUNC_DECL: {
+      printf("FUNC:\n");
+
+      printTree(root->ast_func_decl.scope);
+
+    } break;
+
+    case SCOPE: {
+      for (size_t i = 0; i < root->ast_scope.stmts->len; ++i)
+        printTree((ast_node *)dyn_get(root->ast_scope.stmts, i));
+
+    } break;
+
+    case STMT: {
+      printf("STMT: ");
+
+      switch (root->ast_stmt.type) {
+        case STMT_RET: printf("RETURN\n"); break;
+        case VAR_DECL: printf("VAR DECL %s\n", root->ast_stmt.ident); break;
+      }
+
+      if (root->ast_stmt.expr)
+        printTree(root->ast_stmt.expr);
+
+    } break;
+
+    case EXPR_BINOP: {
+      printf("BINOP: ");
+
+      switch (root->ast_binary_op.type) {
+        case OP_PLUS:  printf("+\n"); break;
+        case OP_MINUS: printf("-\n"); break;
+        case OP_TIMES: printf("*\n"); break;
+        case OP_DIV:   printf("/\n"); break;
+        default:       break;
+      }
+
+      printTree(root->ast_binary_op.left);
+      printTree(root->ast_binary_op.right);
+
+    } break;
+
+    case EXPR_UNOP: {
+      printf("UNOP: ");
+
+      switch (root->ast_unary_op.type) {
+        case NUM_NEG: printf("-\n"); break;
+        case NUM_POS: printf("+\n"); break;
+        default:      break;
+      }
+
+      printTree(root->ast_unary_op.right);
+
+    } break;
+
+    default: break;
+  }
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -39,17 +112,48 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  arena_init(&alloc, 1024 * 1024 * 4);
+
   dyn_array *toks = dyn_init(fsize / 10);
   ast_node *ast = NULL;
 
   tokenize((str){.len = fsize, .chars = buf}, toks, fsize);
   parse((str){.len = fsize, .chars = buf}, toks, &ast);
 
+  printTree(ast);
+
+  FILE *out = fopen("build/out.ll", "w");
+  if (!fp) {
+    fprintf(stderr, "Could not open file\n");
+    fclose(fp);
+    fclose(out);
+    free(buf);
+    freeTokens(toks);
+    dyn_destroy(toks);
+    ast_destroy(ast);
+    arena_destroy(&alloc);
+    return EXIT_FAILURE;
+  }
+
+  dyn_array *table = dyn_init(5);
+  generate_llvm(ast, table, out);
+
+  for (size_t i = 0; i < table->len; ++i) {
+    symbol *sym = (symbol *)dyn_get(table, i);
+    printf("Symbol: %s\tLocation: %lu\n", sym->ident, sym->loc);
+    free(sym);
+  }
+
+  dyn_destroy(table);
+
   freeTokens(toks);
 
   dyn_destroy(toks);
   ast_destroy(ast);
 
+  arena_destroy(&alloc);
+
+  fclose(out);
   fclose(fp);
   free(buf);
 

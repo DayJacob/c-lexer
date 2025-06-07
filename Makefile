@@ -29,6 +29,7 @@ $(BUILD)/obj/%.o: $(SRC)/%.c
 
 run:
 	./$(BUILD)/minic simpletest.c
+	@cat $(BUILD)/out.ll
 
 test: COMPILE_FLAGS +=-O3
 test:
