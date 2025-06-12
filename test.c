@@ -1,11 +1,11 @@
-void add(int x) {
-  int a = x + 1;
-}
-
 int main() {
-  int x = 2;
+  int x = 0;
 
-  {
+  if (x > 5) {
+    int y = 2;
+  }
+
+  while (x < 3) {
     int z = 4;
   }
 

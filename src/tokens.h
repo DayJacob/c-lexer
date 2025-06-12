@@ -28,6 +28,7 @@
   X(DOUBLE)                                                                    \
   X(DQUOTE)                                                                    \
   X(ELSE)                                                                      \
+  X(EMPTY)                                                                     \
   X(ENUM)                                                                      \
   X(EQUALS)                                                                    \
   X(EQEQ)                                                                      \
@@ -99,13 +100,11 @@ typedef enum { TOK_LIST } TokenType;
 #undef X
 
 #define X(name)                                                                \
-  case name:                                                                   \
-    return #name;
+  case name: return #name;
 static const char *TOK2STR(TokenType t) {
   switch (t) {
     TOK_LIST
-  default:
-    return "UNKNOWN";
+    default: return "UNKNOWN";
   }
 }
 #undef X
@@ -118,6 +117,7 @@ typedef struct {
 void tokenize(str buf, dyn_array *toks, size_t len);
 void freeTokens(dyn_array *toks);
 
+// Prints out the string-converted values of all the Tokens in the toks array.
 static inline void dump(dyn_array *toks) {
   for (size_t i = 0; i < toks->len; ++i) {
     Token *t = (Token *)dyn_get(toks, i);

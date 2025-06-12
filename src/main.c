@@ -10,6 +10,7 @@
 #include "utils/dynarray.h"
 #include "utils/str.h"
 
+// Prints the AST to stdout
 void printTree(ast_node *root) {
   if (!root)
     return;
@@ -83,21 +84,25 @@ void printTree(ast_node *root) {
 }
 
 int main(int argc, char *argv[]) {
+  // CLI must take in one argument, potentially more later.
   if (argc != 2) {
     fprintf(stderr, "Fmt: ./main <file>\n");
     return EXIT_FAILURE;
   }
 
+  // Attempt to open the file provided through CLI, panic on failure
   FILE *fp = fopen(argv[1], "r");
   if (!fp) {
     fprintf(stderr, "Could not open file\n");
     return EXIT_FAILURE;
   }
 
+  // Get the file length in characters
   fseek(fp, 0, SEEK_END);
   long fsize = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
+  // Allocate a buffer to read the file into, panic on failure
   char *buf = (char *)malloc(fsize + 1);
   if (!buf) {
     fprintf(stderr, "Memory alloc failed\n");
@@ -105,6 +110,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // Read the file into the buffer, panic on failure
   if (fread((void *)buf, fsize, 1, fp) == fsize) {
     fprintf(stderr, "Could not read file into buffer\n");
     fclose(fp);
@@ -112,16 +118,20 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // Initialize the arena allocator used for parsing
   arena_init(&alloc, 1024 * 1024 * 4);
 
+  // Initialize the tokens array.
   dyn_array *toks = dyn_init(fsize / 10);
   ast_node *ast = NULL;
 
+  // Tokenize and parse the input
   tokenize((str){.len = fsize, .chars = buf}, toks, fsize);
   parse((str){.len = fsize, .chars = buf}, toks, &ast);
 
-  printTree(ast);
+  // printTree(ast);
 
+  // Attempt to open a file to write generated LLVM IR, panic on failure
   FILE *out = fopen("build/out.ll", "w");
   if (!fp) {
     fprintf(stderr, "Could not open file\n");
@@ -135,15 +145,20 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // Initialize symbol table and generate LLVM
   dyn_array *table = dyn_init(5);
   generate_llvm(ast, table, out);
 
+  // Print symbol table contents to stdout
   for (size_t i = 0; i < table->len; ++i) {
     symbol *sym = (symbol *)dyn_get(table, i);
     printf("Symbol: %s\tLocation: %lu\n", sym->ident, sym->loc);
     free(sym);
   }
+  printf("\n\n");
 
+  // Clean up table, tokens, AST, and arena allocator, and all file
+  // pointers/buffers
   dyn_destroy(table);
 
   freeTokens(toks);

@@ -6,6 +6,7 @@ AllowShortFunctionsOnASingleLine: false
 
 AlignConsecutiveShortCaseStatements:
   Enabled: true
+  AcrossEmptyLines: true
   AlignCaseColons: false
 
 IndentCaseLabels: true

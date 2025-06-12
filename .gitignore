@@ -1,3 +1,4 @@
 *.o
 *.ll
 build/*
+.vscode/

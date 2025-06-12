@@ -6,6 +6,7 @@
 
 #define max(a, b) ((((a) > (b)) ? (a) : (b)))
 
+// Returns the line number of a character in a string
 size_t getLineNo(str buf, size_t len, size_t pos) {
   assert(pos <= len, "Index out of bounds.");
 
@@ -18,22 +19,25 @@ size_t getLineNo(str buf, size_t len, size_t pos) {
   return line;
 }
 
+// Tokenizes buf into an array of Tokens.
 void tokenize(str buf, dyn_array *toks, size_t len) {
-  size_t i = 0;
+  size_t i = 0; // Current character index
 
   while (i < len) {
-    // ignore comments
+    // The at() function performs runtime bounds checking on the string input.
+    // If the index is out of bounds, the program panics.
     if (at(buf, i) == '/' && at(buf, i + 1) == '/') {
+      // Ignore comments
       while (at(buf, i++) != '\n')
         ;
     }
 
-    // ignore whitespace
+    // Ignore whitespace
     else if (isspace(at(buf, i))) {
       ++i;
     }
 
-    // char lit
+    // Tokenize string literal
     else if (at(buf, i) == '"') {
       ++i;
 
@@ -41,6 +45,8 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
       while (at(buf, i++) != '"')
         ++toksize;
 
+      // The token ptr is allocated in the tokenize() function, but must be
+      // freed later using freeTokens().
       Token *ptr = (Token *)malloc(sizeof(Token));
       ptr->type = STRINGLIT;
       ptr->start = i - toksize;
@@ -48,9 +54,12 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
       dyn_push(toks, ptr);
     }
 
+    // Character literal
     else if (at(buf, i) == '\'') {
       ++i;
 
+      // Currently accepts arbitrary length character literals, might change
+      // later.
       size_t toksize = 1;
       while (at(buf, i++) != '\'')
         ++toksize;
@@ -62,226 +71,226 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
       dyn_push(toks, ptr);
     }
 
-    // check special char
+    // Check special character
     else if (ispunct(at(buf, i))) {
       Token *ptr = (Token *)malloc(sizeof(Token));
 
       switch (at(buf, i)) {
 
-      case '+': {
-        if (at(buf, i + 1) == '+') {
-          ptr->type = INCREM;
-          ++i;
-        } else if (at(buf, i + 1) == '=') {
-          ptr->type = PLUSEQ;
-          ++i;
-        } else
-          ptr->type = PLUS;
-
-      } break;
-
-      case '-': {
-        if (at(buf, i + 1) == '-') {
-          ptr->type = DECREM;
-          ++i;
-        } else if (at(buf, i + 1) == '>') {
-          ptr->type = ARROW;
-          ++i;
-        } else if (at(buf, i + 1) == '=') {
-          ptr->type = MINUSEQ;
-          ++i;
-        } else
-          ptr->type = MINUS;
-
-      } break;
-
-      case '*': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = TIMESEQ;
-          ++i;
-        } else
-          ptr->type = ASTERISK;
-
-      } break;
-
-      case '/': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = DIVEQ;
-          ++i;
-        } else
-          ptr->type = SLASH;
-
-      } break;
-
-      case '%': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = MODEQ;
-          ++i;
-        } else
-          ptr->type = MODULO;
-      }
-
-      case '{': {
-        ptr->type = LBRACE;
-
-      } break;
-
-      case '}': {
-        ptr->type = RBRACE;
-
-      } break;
-
-      case '[': {
-        ptr->type = LBRACKET;
-
-      } break;
-
-      case ']': {
-        ptr->type = RBRACKET;
-
-      } break;
-
-      case '(': {
-        ptr->type = LPAREN;
-
-      } break;
-
-      case ')': {
-        ptr->type = RPAREN;
-
-      } break;
-
-      case '=': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = EQEQ;
-          ++i;
-        } else
-          ptr->type = EQUALS;
-
-      } break;
-
-      case ';': {
-        ptr->type = SEMI;
-
-      } break;
-
-      case ':': {
-        ptr->type = COLON;
-
-      } break;
-
-      case ',': {
-        ptr->type = COMMA;
-
-      } break;
-
-      case '>': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = GE;
-          ++i;
-        } else if (at(buf, i + 1) == '>') {
-          if (at(buf, i + 2) == '=') {
-            ptr->type = RSHIFTEQ;
+        case '+': {
+          if (at(buf, i + 1) == '+') {
+            ptr->type = INCREM;
+            ++i;
+          } else if (at(buf, i + 1) == '=') {
+            ptr->type = PLUSEQ;
             ++i;
           } else
-            ptr->type = RSHIFT;
+            ptr->type = PLUS;
 
-          ++i;
-        } else {
-          ptr->type = GT;
-        }
-      } break;
+        } break;
 
-      case '<': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = LE;
-          ++i;
-        } else if (at(buf, i + 1) == '<') {
-          if (at(buf, i + 2) == '=') {
-            ptr->type = LSHIFTEQ;
+        case '-': {
+          if (at(buf, i + 1) == '-') {
+            ptr->type = DECREM;
+            ++i;
+          } else if (at(buf, i + 1) == '>') {
+            ptr->type = ARROW;
+            ++i;
+          } else if (at(buf, i + 1) == '=') {
+            ptr->type = MINUSEQ;
             ++i;
           } else
-            ptr->type = LSHIFT;
+            ptr->type = MINUS;
 
-          ++i;
-        } else {
-          ptr->type = LT;
+        } break;
+
+        case '*': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = TIMESEQ;
+            ++i;
+          } else
+            ptr->type = ASTERISK;
+
+        } break;
+
+        case '/': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = DIVEQ;
+            ++i;
+          } else
+            ptr->type = SLASH;
+
+        } break;
+
+        case '%': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = MODEQ;
+            ++i;
+          } else
+            ptr->type = MODULO;
         }
-      } break;
 
-      case '!': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = NEQ;
-          ++i;
-        } else
-          ptr->type = NOT;
+        case '{': {
+          ptr->type = LBRACE;
 
-      } break;
+        } break;
 
-      case '~': {
-        ptr->type = TILDE;
+        case '}': {
+          ptr->type = RBRACE;
 
-      } break;
+        } break;
 
-      case '.': {
-        ptr->type = PERIOD;
+        case '[': {
+          ptr->type = LBRACKET;
 
-      } break;
+        } break;
 
-      case '#': {
-        ptr->type = HASH;
+        case ']': {
+          ptr->type = RBRACKET;
 
-      } break;
+        } break;
 
-      case '&': {
-        if (at(buf, i + 1) == '&') {
-          ptr->type = AND;
-          ++i;
-        } else if (at(buf, i + 1) == '=') {
-          ptr->type = ANDEQ;
-          ++i;
-        } else
-          ptr->type = AMPER;
+        case '(': {
+          ptr->type = LPAREN;
 
-      } break;
+        } break;
 
-      case '|': {
-        if (at(buf, i + 1) == '|') {
-          ptr->type = OR;
-          ++i;
-        } else if (at(buf, i + 1) == '=') {
-          ptr->type = OREQ;
-          ++i;
-        } else
-          ptr->type = BITOR;
+        case ')': {
+          ptr->type = RPAREN;
 
-      } break;
+        } break;
 
-      case '^': {
-        if (at(buf, i + 1) == '=') {
-          ptr->type = XOREQ;
-          ++i;
-        } else
-          ptr->type = XOR;
+        case '=': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = EQEQ;
+            ++i;
+          } else
+            ptr->type = EQUALS;
 
-      } break;
+        } break;
 
-      case '?': {
-        ptr->type = QUESTION;
+        case ';': {
+          ptr->type = SEMI;
 
-      } break;
+        } break;
 
-      case '\\': {
-        ptr->type = BACKSLASH;
+        case ':': {
+          ptr->type = COLON;
 
-      } break;
+        } break;
 
-      default: {
-        fprintf(stderr, "Unrecognized token %c (line %lu).\n", at(buf, i),
-                getLineNo(buf, len, i));
-        dyn_destroy(toks);
-        exit(1);
-      }
+        case ',': {
+          ptr->type = COMMA;
+
+        } break;
+
+        case '>': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = GE;
+            ++i;
+          } else if (at(buf, i + 1) == '>') {
+            if (at(buf, i + 2) == '=') {
+              ptr->type = RSHIFTEQ;
+              ++i;
+            } else
+              ptr->type = RSHIFT;
+
+            ++i;
+          } else {
+            ptr->type = GT;
+          }
+        } break;
+
+        case '<': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = LE;
+            ++i;
+          } else if (at(buf, i + 1) == '<') {
+            if (at(buf, i + 2) == '=') {
+              ptr->type = LSHIFTEQ;
+              ++i;
+            } else
+              ptr->type = LSHIFT;
+
+            ++i;
+          } else {
+            ptr->type = LT;
+          }
+        } break;
+
+        case '!': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = NEQ;
+            ++i;
+          } else
+            ptr->type = NOT;
+
+        } break;
+
+        case '~': {
+          ptr->type = TILDE;
+
+        } break;
+
+        case '.': {
+          ptr->type = PERIOD;
+
+        } break;
+
+        case '#': {
+          ptr->type = HASH;
+
+        } break;
+
+        case '&': {
+          if (at(buf, i + 1) == '&') {
+            ptr->type = AND;
+            ++i;
+          } else if (at(buf, i + 1) == '=') {
+            ptr->type = ANDEQ;
+            ++i;
+          } else
+            ptr->type = AMPER;
+
+        } break;
+
+        case '|': {
+          if (at(buf, i + 1) == '|') {
+            ptr->type = OR;
+            ++i;
+          } else if (at(buf, i + 1) == '=') {
+            ptr->type = OREQ;
+            ++i;
+          } else
+            ptr->type = BITOR;
+
+        } break;
+
+        case '^': {
+          if (at(buf, i + 1) == '=') {
+            ptr->type = XOREQ;
+            ++i;
+          } else
+            ptr->type = XOR;
+
+        } break;
+
+        case '?': {
+          ptr->type = QUESTION;
+
+        } break;
+
+        case '\\': {
+          ptr->type = BACKSLASH;
+
+        } break;
+
+        default: {
+          fprintf(stderr, "Unrecognized token %c (line %lu).\n", at(buf, i),
+                  getLineNo(buf, len, i));
+          dyn_destroy(toks);
+          exit(1);
+        }
       }
 
       ptr->start = i;
@@ -290,7 +299,9 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
       ++i;
     }
 
-    // alpha
+    // Identifier/keyword
+    // First character must be alphabetic, but following characters may be
+    // alphanumeric or _
     else if (isalpha(at(buf, i))) {
       size_t toksize = 0;
       while (isalnum(at(buf, i)) || at(buf, i) == '_') {
@@ -298,10 +309,13 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
         ++toksize;
       }
 
+      // dupl() calls malloc, so bufcmp must be freed at the end of its
+      // lifetime.
       char *bufcmp = dupl(buf, i - toksize, toksize);
 
       Token *ptr = (Token *)malloc(sizeof(Token));
 
+      // Strlen is safe here since we are using it on a string literal.
       if (!strncmp(bufcmp, "auto", max(toksize, strlen("auto"))))
         ptr->type = AUTO;
 
@@ -415,10 +429,10 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
       bufcmp = NULL;
     }
 
-    // digit
+    // Numeric literal
     else if (isdigit(at(buf, i))) {
       size_t toksize = 0;
-      bool isFloat = false;
+      bool isFloat = false; // Distinguishes between floats and integers
       while (isdigit(at(buf, i)) || at(buf, i) == '.') {
         if (at(buf, i) == '.')
           isFloat = true;
@@ -438,7 +452,7 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
 
     }
 
-    // otherwise
+    // Panic on unrecognized characters.
     else {
       fprintf(stderr, "Unrecognized token %c (line %lu).\n", at(buf, i),
               getLineNo(buf, len, i));
@@ -447,12 +461,16 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
     }
   }
 
+  // Print tokens to stdout
   dump(toks);
 }
 
+// Frees the memory used by the tokenizer's malloc() calls.
 void freeTokens(dyn_array *toks) {
   for (size_t i = 0; i < toks->len; ++i) {
-    Token *t = (Token *)dyn_get(toks, i);
+    // Bounds checking is unnecessary because the condition is guaranteed by the
+    // for loop.
+    Token *t = (Token *)toks->el[i];
     free(t);
     t = NULL;
   }

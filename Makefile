@@ -29,6 +29,7 @@ $(BUILD)/obj/%.o: $(SRC)/%.c
 
 run:
 	./$(BUILD)/minic simpletest.c
+	@$(CC) -S -emit-llvm -O0 simpletest.c
 	@cat $(BUILD)/out.ll
 
 test: COMPILE_FLAGS +=-O3
@@ -43,5 +44,4 @@ test:
 clean:
 	rm -rf $(BUILD)/obj/*
 	rm -r $(BUILD)/minic
-	rm -r $(BUILD)/minic.dSYM
 

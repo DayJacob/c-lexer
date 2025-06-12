@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+// Macro for handling errors
 #define error_expected(_m)                                                     \
   {                                                                            \
     Token *curr = (Token *)dyn_get(toks, (*i));                                \
@@ -15,11 +16,13 @@
     return NULL;                                                               \
   }
 
+// Useful macros for accessing tokens
 #define current_token() (Token *)dyn_get(toks, (*i))
 #define peek() (Token *)dyn_get(toks, (*i) + 1);
 #define consume() (Token *)dyn_get(toks, (*i)++)
 #define consume_discard() ++(*i)
 
+// Parses the string starting at position i and returns the numeric value
 double parseNum(str buf, size_t i) {
   size_t len = 0;
   while (isdigit(at(buf, i)) || at(buf, i) == '.') {
@@ -35,6 +38,7 @@ double parseNum(str buf, size_t i) {
   return result;
 }
 
+// Parses the string starting at position i and returns the string value
 str parseString(str buf, size_t i) {
   str parsed = {0};
   while (isalnum(at(buf, i)) || at(buf, i) == '_') {
@@ -47,14 +51,21 @@ str parseString(str buf, size_t i) {
   return parsed;
 }
 
-bool isType(TokenType type) {
+// Returns true if type is a valid C type, and false otherwise
+// TODO: Add support for pointer types
+inline bool isType(TokenType type) {
   return type == INT || type == FLOAT || type == CHAR || type == SHORT ||
          type == DOUBLE || type == LONG || type == VOID;
 }
 
-bool isNumberLiteral(TokenType type) {
+// Returns true if type is a valid C numeric literal, and false otherwise
+inline bool isNumberLiteral(TokenType type) {
   return type == INTLIT || type == FLOATLIT;
 }
+
+// PARSING METHODS
+// See grammar.bnf for the actual grammar rules and specifications needed to
+// parse the tokens array.
 
 ast_node *try_parse_param(str buf, dyn_array *toks, size_t *i) {
   Token *front = consume();
@@ -82,7 +93,7 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
     return create_unop(atom, (front->type == MINUS) ? NUM_NEG : NUM_POS);
 
   } else if (isNumberLiteral(front->type))
-    return create_num(parseNum(buf, front->start));
+    return create_num(parseNum(buf, front->start), front->type);
 
   else if (front->type == IDENT) {
     Token *next = current_token();
@@ -223,6 +234,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
 
   ast_node *stmt = NULL;
   if (isType(front->type)) {
+    TokenType value = front->type;
     consume_discard();
 
     front = consume();
@@ -243,7 +255,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     if (front->type != SEMI)
       error_expected("\';\'");
 
-    stmt = create_stmt(VAR_DECL, ident.chars, expr);
+    stmt = create_stmt(VAR_DECL, value, ident.chars, expr);
 
   } else if (front->type == RETURN) {
     consume_discard();
@@ -256,7 +268,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     if (front->type != SEMI)
       error_expected("\';\'");
 
-    stmt = create_stmt(STMT_RET, "", expr);
+    stmt = create_stmt(STMT_RET, VOID, "", expr);
 
   } else if (front->type == IF) {
     consume_discard();
@@ -274,13 +286,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\')\'");
 
     ast_node *scope = NULL;
-    Token *next = current_token();
-    if (next->type == LBRACE)
-      scope = try_parse_scope("", buf, toks, i);
-    else
-      scope = try_parse_stmt(buf, toks, i);
-
-    if (!scope)
+    if (!(scope = try_parse_stmt(buf, toks, i)))
       error_expected("scope or statement");
 
     stmt = create_if_stmt(pred, scope, NULL);
@@ -289,32 +295,48 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     ast_node *alt = NULL;
     if (front->type == ELSE) {
       consume_discard();
-      next = current_token();
-      if (next->type == LBRACE)
-        alt = try_parse_scope("", buf, toks, i);
-      else
-        alt = try_parse_stmt(buf, toks, i);
 
-      if (!alt)
+      if (!(alt = try_parse_stmt(buf, toks, i)))
         error_expected("else scope or statement");
     }
 
     stmt->ast_if_stmt.alt = alt;
 
   } else if (front->type == LBRACE) {
-    if (!(stmt = try_parse_scope("", buf, toks, i)))
+    if (!(stmt = try_parse_scope(buf, toks, i)))
       error_expected("scope");
+
+  } else if (front->type == WHILE) {
+    consume_discard();
+
+    front = consume();
+    if (front->type != LPAREN)
+      error_expected("\'(\'");
+
+    ast_node *pred = NULL;
+    if (!(pred = try_parse_expr(buf, toks, i)))
+      error_expected("predicate expression");
+
+    front = consume();
+    if (front->type != RPAREN)
+      error_expected("\')\'");
+
+    ast_node *scope = NULL;
+    if (!(scope = try_parse_stmt(buf, toks, i)))
+      error_expected("scope or statement");
+
+    stmt = create_while_stmt(pred, scope);
   }
 
   return stmt;
 }
 
-ast_node *try_parse_scope(char *ident, str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_scope(str buf, dyn_array *toks, size_t *i) {
   Token *front = consume();
   if (front->type != LBRACE)
     error_expected("\'{\'");
 
-  ast_node *scope = create_scope(ident);
+  ast_node *scope = create_scope();
 
   ast_node *stmt = NULL;
   while ((stmt = try_parse_stmt(buf, toks, i))) {
@@ -375,8 +397,7 @@ ast_node *try_parse_funcdecl(str buf, dyn_array *toks, size_t *i) {
 
   consume_discard();
 
-  func->ast_func_decl.scope =
-      try_parse_scope(func->ast_func_decl.ident, buf, toks, i);
+  func->ast_func_decl.scope = try_parse_scope(buf, toks, i);
 
   return func;
 }
