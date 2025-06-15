@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "dynarray.h"
+#include "llvm.h"
 
 arena_t alloc;
 
@@ -10,7 +11,7 @@ ast_node *create_binop(ast_node *left, ast_node *right, BinOpType op) {
   node->ast_binary_op.type = op;
   node->ast_binary_op.left = left;
   node->ast_binary_op.right = right;
-  node->value = (left->value == FLOAT || right->value == FLOAT) ? FLOAT : INT;
+  node->value = getStrongerType(left->value, right->value);
   return node;
 }
 
@@ -19,6 +20,7 @@ ast_node *create_unop(ast_node *right, UnOpType op) {
   node->type = EXPR_UNOP;
   node->ast_unary_op.type = op;
   node->ast_unary_op.right = right;
+  node->value = right->value;
   return node;
 }
 
@@ -30,10 +32,10 @@ ast_node *create_num(double num, TokenType value) {
   return node;
 }
 
-ast_node *create_ident(char *ident) {
+ast_node *create_ident(char *ident, TokenType value) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
   node->type = IDENT_NODE;
-  node->value = EMPTY;
+  node->value = value;
   node->ident = ident;
   return node;
 }
@@ -117,6 +119,13 @@ ast_node *create_while_stmt(ast_node *pred, ast_node *scope) {
   node->ast_while_stmt.pred = pred;
   node->ast_while_stmt.scope = scope;
   return node;
+}
+
+UnOpType getImplicitCastOp(TokenType parent, TokenType child) {
+  if (asBasicType(parent) == asBasicType(child))
+    return (getAlignment(parent) > getAlignment(child)) ? EXTEND : TRUNC;
+  else
+    return (asBasicType(parent) == FLOAT) ? INT_TOFLOAT : FLOAT_TOINT;
 }
 
 void ast_destroy(ast_node *root) {

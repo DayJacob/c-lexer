@@ -4,6 +4,7 @@
 #include "arena.h"
 #include "assert.h"
 #include "dynarray.h"
+#include "llvm.h"
 #include <stdlib.h>
 
 typedef enum {
@@ -35,7 +36,15 @@ typedef enum {
   OP_NEQ
 } BinOpType;
 
-typedef enum { OP_LOGNEG, NUM_NEG, NUM_POS } UnOpType;
+typedef enum {
+  OP_LOGNEG,
+  NUM_NEG,
+  NUM_POS,
+  FLOAT_TOINT,
+  INT_TOFLOAT,
+  EXTEND,
+  TRUNC
+} UnOpType;
 typedef enum { STMT_RET, VAR_DECL } StmtType;
 
 // TODO: Refactor tagged union?
@@ -105,7 +114,7 @@ typedef struct ast_node {
 ast_node *create_binop(ast_node *left, ast_node *right, BinOpType op);
 ast_node *create_unop(ast_node *right, UnOpType);
 ast_node *create_num(double num, TokenType value);
-ast_node *create_ident(char *ident);
+ast_node *create_ident(char *ident, TokenType value);
 ast_node *create_prgm();
 ast_node *create_funcdecl(TokenType ret, char *ident, ast_node *scope);
 ast_node *create_stmt(StmtType type, TokenType value, char *ident,
@@ -116,5 +125,7 @@ ast_node *create_scope();
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt);
 ast_node *create_else_stmt(ast_node *scope);
 ast_node *create_while_stmt(ast_node *pred, ast_node *scope);
+
+UnOpType getImplicitCastOp(TokenType, TokenType);
 
 void ast_destroy(ast_node *root);

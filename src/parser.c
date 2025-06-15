@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+dyn_array *table;
+
 // Macro for handling errors
 #define error_expected(_m)                                                     \
   {                                                                            \
@@ -21,6 +23,17 @@
 #define peek() (Token *)dyn_get(toks, (*i) + 1);
 #define consume() (Token *)dyn_get(toks, (*i)++)
 #define consume_discard() ++(*i)
+
+// Retrieves the symbol in the symbol table with the respective name.
+Symbol *findInSymTable(const char *ident) {
+  for (size_t i = 0; i < table->len; ++i) {
+    Symbol *sym = (Symbol *)table->el[i];
+    if (!strcmp(ident, sym->ident))
+      return sym;
+  }
+
+  return NULL;
+}
 
 // Parses the string starting at position i and returns the numeric value
 double parseNum(str buf, size_t i) {
@@ -79,7 +92,13 @@ ast_node *try_parse_param(str buf, dyn_array *toks, size_t *i) {
   if (front->type != IDENT)
     error_expected("identifier");
 
-  return create_param(type, parseString(buf, front->start).chars);
+  Symbol *sym = (Symbol *)malloc(sizeof(Symbol));
+  char *ident = parseString(buf, front->start).chars;
+  sym->ident = ident;
+  sym->type = type;
+  dyn_push(table, sym);
+
+  return create_param(type, ident);
 }
 
 ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
@@ -97,8 +116,11 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
 
   else if (front->type == IDENT) {
     Token *next = current_token();
-    if (next->type != LPAREN)
-      return create_ident(parseString(buf, front->start).chars);
+    if (next->type != LPAREN) {
+      char *ident = parseString(buf, front->start).chars;
+      Symbol *sym = findInSymTable(ident);
+      return create_ident(ident, sym->type);
+    }
 
     consume_discard();
 
@@ -254,6 +276,11 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     front = consume();
     if (front->type != SEMI)
       error_expected("\';\'");
+
+    Symbol *sym = (Symbol *)malloc(sizeof(Symbol));
+    sym->type = value;
+    sym->ident = ident.chars;
+    dyn_push(table, sym);
 
     stmt = create_stmt(VAR_DECL, value, ident.chars, expr);
 

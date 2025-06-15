@@ -1,3 +1,3 @@
-int asint(char x) {
-  return x;
+char add(char x, int y) {
+  return x + y;
 }

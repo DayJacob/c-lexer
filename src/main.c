@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "analysis.h"
 #include "codegen.h"
 #include "parser.h"
 #include "tokens.h"
@@ -72,6 +73,8 @@ void printTree(ast_node *root) {
       switch (root->ast_unary_op.type) {
         case NUM_NEG: printf("-\n"); break;
         case NUM_POS: printf("+\n"); break;
+        case TRUNC:   printf("cast truncate\n"); break;
+        case EXTEND:  printf("cast extend\n"); break;
         default:      break;
       }
 
@@ -125,11 +128,15 @@ int main(int argc, char *argv[]) {
   dyn_array *toks = dyn_init(fsize / 10);
   ast_node *ast = NULL;
 
+  // Initialize the Symbol table
+  table = dyn_init(5);
+
   // Tokenize and parse the input
   tokenize((str){.len = fsize, .chars = buf}, toks, fsize);
   parse((str){.len = fsize, .chars = buf}, toks, &ast);
+  analyze(ast);
 
-  // printTree(ast);
+  printTree(ast);
 
   // Attempt to open a file to write generated LLVM IR, panic on failure
   FILE *out = fopen("build/out.ll", "w");
@@ -145,13 +152,12 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  // Initialize symbol table and generate LLVM
-  dyn_array *table = dyn_init(5);
+  // Generate LLVM
   generate_llvm(ast, table, out);
 
-  // Print symbol table contents to stdout
+  // Print Symbol table contents to stdout
   for (size_t i = 0; i < table->len; ++i) {
-    symbol *sym = (symbol *)dyn_get(table, i);
+    Symbol *sym = (Symbol *)dyn_get(table, i);
     printf("Symbol: %s\tLocation: %lu\n", sym->ident, sym->loc);
     free(sym);
   }

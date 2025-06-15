@@ -7,6 +7,16 @@
 #include "utils/dynarray.h"
 #include <stdbool.h>
 
+extern dyn_array *table;
+
+typedef struct {
+  char *ident;
+  TokenType type;
+  size_t loc;
+} Symbol;
+
+Symbol *findInSymTable(const char *ident);
+
 double parseNum(str, size_t);
 str parseString(str, size_t);
 
