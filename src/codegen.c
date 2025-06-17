@@ -62,43 +62,7 @@ double eval_tree(ast_node *root) {
   }
 }
 
-void convert_type(FILE *out, TokenType out_type, TokenType in_type) {
-  if (asBasicType(out_type) != asBasicType(in_type)) {
-    switch (asBasicType(out_type)) {
-      case INT:   fprintf(out, "\t%%%lu = fptosi ", ssa); break;
-      case FLOAT: fprintf(out, "\t%%%lu = sitofp ", ssa); break;
-      default:    break;
-    }
-
-    fprintf(out, "%s %%%lu to %s\n", asLLVMType(in_type), ssa - 1,
-            asLLVMType(out_type));
-    ++ssa;
-
-  } else if (getAlignment(out_type) < getAlignment(in_type)) {
-    switch (asBasicType(out_type)) {
-      case INT:   fprintf(out, "\t%%%lu = trunc ", ssa); break;
-      case FLOAT: fprintf(out, "\t%%%lu = fptrunc ", ssa); break;
-      default:    break;
-    }
-
-    fprintf(out, "%s %%%lu to %s\n", asLLVMType(in_type), ssa - 1,
-            asLLVMType(out_type));
-    ++ssa;
-
-  } else if (getAlignment(out_type) > getAlignment(in_type)) {
-    switch (asBasicType(out_type)) {
-      case INT:   fprintf(out, "\t%%%lu = sext ", ssa); break;
-      case FLOAT: fprintf(out, "\t%%%lu = fpext ", ssa); break;
-      default:    break;
-    }
-
-    fprintf(out, "%s %%%lu to %s\n", asLLVMType(in_type), ssa - 1,
-            asLLVMType(out_type));
-    ++ssa;
-  }
-}
-
-void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
+void generate_llvm(ast_node *root, FILE *out) {
   if (!root)
     return;
 
@@ -106,8 +70,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
     case PRGM: {
       for (size_t i = 0; i < root->ast_prgm.func_decls->len; ++i)
-        generate_llvm((ast_node *)dyn_get(root->ast_prgm.func_decls, i), table,
-                      out);
+        generate_llvm((ast_node *)root->ast_prgm.func_decls->el[i], out);
 
     } break;
 
@@ -117,7 +80,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
               root->ast_func_decl.ident);
 
       for (size_t i = 0; i < root->ast_func_decl.params->len; ++i) {
-        ast_node *param = (ast_node *)dyn_get(root->ast_func_decl.params, i);
+        ast_node *param = (ast_node *)root->ast_func_decl.params->el[i];
         Symbol *sym = findInSymTable(param->ast_param.ident);
         sym->loc = ssa++;
 
@@ -132,8 +95,11 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
       ++ssa;
       fprintf(out, ") {\n");
 
+      fprintf(out, "\t%%%lu = alloca %s, align %lu\n", ssa++,
+              asLLVMType(ret_type), getAlignment(ret_type));
+
       for (size_t i = 0; i < root->ast_func_decl.params->len; ++i) {
-        ast_node *param = (ast_node *)dyn_get(root->ast_func_decl.params, i);
+        ast_node *param = (ast_node *)root->ast_func_decl.params->el[i];
         Symbol *sym = findInSymTable(param->ast_param.ident);
 
         fprintf(out, "\t%%%lu = alloca %s, align %lu\n", ssa,
@@ -144,7 +110,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
         ++ssa;
       }
 
-      generate_llvm(root->ast_func_decl.scope, table, out);
+      generate_llvm(root->ast_func_decl.scope, out);
 
       fprintf(out, "}\n");
 
@@ -152,8 +118,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
     case SCOPE: {
       for (size_t i = 0; i < root->ast_scope.stmts->len; ++i)
-        generate_llvm((ast_node *)dyn_get(root->ast_scope.stmts, i), table,
-                      out);
+        generate_llvm((ast_node *)root->ast_scope.stmts->el[i], out);
 
     } break;
 
@@ -164,8 +129,8 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
           Symbol *var = findInSymTable(root->ast_stmt.ident);
           var->loc = ssa;
 
-          fprintf(out, "\t%%%lu = alloca %s, align 4\n", ssa++,
-                  asLLVMType(var->type));
+          fprintf(out, "\t%%%lu = alloca %s, align %lu\n", ssa++,
+                  asLLVMType(var->type), getAlignment(var->type));
 
           if (isComptimeExpr(root->ast_stmt.expr)) {
             double num = eval_tree(root->ast_stmt.expr);
@@ -175,7 +140,11 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
             break;
           }
 
-          generate_llvm(root->ast_stmt.expr, table, out);
+          generate_llvm(root->ast_stmt.expr, out);
+
+          fprintf(out, "\tstore %s %%%lu, ptr %%%lu, align %lu\n",
+                  asLLVMType(root->value), ssa - 1, var->loc,
+                  getAlignment(root->value));
 
         } break;
 
@@ -199,9 +168,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
             break;
           }
 
-          generate_llvm(root->ast_stmt.expr, table, out);
-
-          convert_type(out, ret_type, root->ast_stmt.expr->value);
+          generate_llvm(root->ast_stmt.expr, out);
 
           fprintf(out, "\tret %s %%%lu\n", asLLVMType(ret_type), ssa - 1);
 
@@ -212,6 +179,25 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
     } break;
 
+    case IF_STMT: {
+      generate_llvm(root->ast_if_stmt.pred, out);
+
+      fprintf(out, "\tbr i1 %%%lu, label %%then, label %%%s\n", ssa - 1,
+              (root->ast_if_stmt.alt) ? "else" : "after");
+      fprintf(out, "\nthen:\n");
+      ++ssa;
+
+      generate_llvm(root->ast_if_stmt.scope, out);
+
+      if (root->ast_if_stmt.alt) {
+        fprintf(out, "\nelse:\n");
+        generate_llvm(root->ast_if_stmt.alt, out);
+      }
+
+      fprintf(out, "\nafter:\n");
+
+    } break;
+
     case EXPR_BINOP: {
       size_t lhs, rhs;
       bool lhs_comptime = false, rhs_comptime = false;
@@ -219,12 +205,12 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
       if ((lhs_comptime = isComptimeExpr(root->ast_binary_op.left)))
         lhs = (int)eval_tree(root->ast_binary_op.left);
       else
-        generate_llvm(root->ast_binary_op.left, table, out);
+        generate_llvm(root->ast_binary_op.left, out);
 
       if ((rhs_comptime = isComptimeExpr(root->ast_binary_op.right)))
         rhs = (int)eval_tree(root->ast_binary_op.right);
       else
-        generate_llvm(root->ast_binary_op.right, table, out);
+        generate_llvm(root->ast_binary_op.right, out);
 
       bool has_comptime_expr = lhs_comptime || rhs_comptime;
 
@@ -243,7 +229,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
           if (!rhs_comptime)
             fprintf(out, "%%");
-          fprintf(out, "%li, align 4\n", (rhs_comptime ? rhs : ssa - 1));
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
 
           ++ssa;
 
@@ -259,7 +245,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
           if (!rhs_comptime)
             fprintf(out, "%%");
-          fprintf(out, "%li, align 4\n", (rhs_comptime ? rhs : ssa - 1));
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
 
           ++ssa;
 
@@ -275,7 +261,7 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
           if (!rhs_comptime)
             fprintf(out, "%%");
-          fprintf(out, "%li, align 4\n", (rhs_comptime ? rhs : ssa - 1));
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
 
           ++ssa;
 
@@ -291,7 +277,23 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
 
           if (!rhs_comptime)
             fprintf(out, "%%");
-          fprintf(out, "%li, align 4\n", (rhs_comptime ? rhs : ssa - 1));
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
+
+          ++ssa;
+
+        } break;
+
+        case OP_EQEQ: {
+          fprintf(out, "\t%%%lu = icmp eq %s ", ssa, asLLVMType(root->value));
+
+          if (!lhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li, ",
+                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
+
+          if (!rhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
 
           ++ssa;
 
@@ -303,13 +305,53 @@ void generate_llvm(ast_node *root, dyn_array *table, FILE *out) {
     } break;
 
     case EXPR_UNOP: {
-      generate_llvm(root->ast_unary_op.right, table, out);
+      generate_llvm(root->ast_unary_op.right, out);
 
       switch (root->ast_unary_op.type) {
         case NUM_NEG: {
           fprintf(out, "\t%%%lu = sub nsw 0, i32 %%%lu\n", ssa, ssa - 1);
           ++ssa;
 
+        } break;
+
+        case EXTEND: {
+          switch (asBasicType(root->value)) {
+            case INT:   fprintf(out, "\t%%%lu = sext ", ssa); break;
+            case FLOAT: fprintf(out, "\t%%%lu = fpext ", ssa); break;
+            default:    break;
+          }
+
+          fprintf(out, "%s %%%lu to %s\n",
+                  asLLVMType(root->ast_unary_op.right->value), ssa - 1,
+                  asLLVMType(root->value));
+          ++ssa;
+        } break;
+
+        case TRUNC: {
+          switch (asBasicType(root->value)) {
+            case INT:   fprintf(out, "\t%%%lu = trunc ", ssa); break;
+            case FLOAT: fprintf(out, "\t%%%lu = fptrunc ", ssa); break;
+            default:    break;
+          }
+
+          fprintf(out, "%s %%%lu to %s\n",
+                  asLLVMType(root->ast_unary_op.right->value), ssa - 1,
+                  asLLVMType(root->value));
+          ++ssa;
+        } break;
+
+        case INT_TOFLOAT: {
+          fprintf(out, "\t%%%lu = sitofp %s %%%lu to %s\n", ssa,
+                  asLLVMType(root->ast_unary_op.right->value), ssa - 1,
+                  asLLVMType(root->value));
+          ++ssa;
+        } break;
+
+        case FLOAT_TOINT: {
+          fprintf(out, "\t%%%lu = fptosi %s %%%lu to %s\n", ssa,
+                  asLLVMType(root->ast_unary_op.right->value), ssa - 1,
+                  asLLVMType(root->value));
+          ++ssa;
         } break;
 
         default: break;

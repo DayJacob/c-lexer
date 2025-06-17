@@ -71,11 +71,13 @@ void printTree(ast_node *root) {
       printf("UNOP: ");
 
       switch (root->ast_unary_op.type) {
-        case NUM_NEG: printf("-\n"); break;
-        case NUM_POS: printf("+\n"); break;
-        case TRUNC:   printf("cast truncate\n"); break;
-        case EXTEND:  printf("cast extend\n"); break;
-        default:      break;
+        case NUM_NEG:     printf("-\n"); break;
+        case NUM_POS:     printf("+\n"); break;
+        case TRUNC:       printf("cast truncate\n"); break;
+        case EXTEND:      printf("cast extend\n"); break;
+        case FLOAT_TOINT: printf("cast float to int\n"); break;
+        case INT_TOFLOAT: printf("cast int to float\n"); break;
+        default:          break;
       }
 
       printTree(root->ast_unary_op.right);
@@ -153,7 +155,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Generate LLVM
-  generate_llvm(ast, table, out);
+  generate_llvm(ast, out);
 
   // Print Symbol table contents to stdout
   for (size_t i = 0; i < table->len; ++i) {

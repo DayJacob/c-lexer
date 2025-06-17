@@ -8,21 +8,23 @@
 #include <string.h>
 
 dyn_array *table;
+static size_t i = 0;
 
 // Macro for handling errors
 #define error_expected(_m)                                                     \
   {                                                                            \
-    Token *curr = (Token *)dyn_get(toks, (*i));                                \
+    Token *curr = (Token *)dyn_get(toks, i);                                   \
     fprintf(stderr, "Expected %s on line %lu\n", _m,                           \
             getLineNo(buf, buf.len, curr->start));                             \
     return NULL;                                                               \
   }
 
 // Useful macros for accessing tokens
-#define current_token() (Token *)dyn_get(toks, (*i))
-#define peek() (Token *)dyn_get(toks, (*i) + 1);
-#define consume() (Token *)dyn_get(toks, (*i)++)
-#define consume_discard() ++(*i)
+#define current_token() (Token *)dyn_get(toks, i)
+#define peek() (Token *)dyn_get(toks, i + 1);
+#define peek_n(n) (Token *)dyn_get(toks, i + 1 + n);
+#define consume() (Token *)dyn_get(toks, i++)
+#define consume_discard() ++i
 
 // Retrieves the symbol in the symbol table with the respective name.
 Symbol *findInSymTable(const char *ident) {
@@ -80,7 +82,7 @@ inline bool isNumberLiteral(TokenType type) {
 // See grammar.bnf for the actual grammar rules and specifications needed to
 // parse the tokens array.
 
-ast_node *try_parse_param(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_param(str buf, dyn_array *toks) {
   Token *front = consume();
 
   if (!isType(front->type))
@@ -101,12 +103,12 @@ ast_node *try_parse_param(str buf, dyn_array *toks, size_t *i) {
   return create_param(type, ident);
 }
 
-ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_factor(str buf, dyn_array *toks) {
   Token *front = consume();
 
   if (front->type == PLUS || front->type == MINUS) {
     ast_node *atom = NULL;
-    if (!(atom = try_parse_factor(buf, toks, i)))
+    if (!(atom = try_parse_factor(buf, toks)))
       error_expected("atomic expression");
 
     return create_unop(atom, (front->type == MINUS) ? NUM_NEG : NUM_POS);
@@ -119,6 +121,8 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
     if (next->type != LPAREN) {
       char *ident = parseString(buf, front->start).chars;
       Symbol *sym = findInSymTable(ident);
+      assert(sym, "Symbol not declared in scope.");
+
       return create_ident(ident, sym->type);
     }
 
@@ -128,11 +132,11 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
 
     front = current_token();
     ast_node *expr = NULL;
-    if (front->type != RPAREN && (expr = try_parse_expr(buf, toks, i))) {
+    if (front->type != RPAREN && (expr = try_parse_expr(buf, toks))) {
       dyn_push(func->ast_func_call.args, expr);
 
       front = consume();
-      while (front->type == COMMA && (expr = try_parse_expr(buf, toks, i))) {
+      while (front->type == COMMA && (expr = try_parse_expr(buf, toks))) {
         dyn_push(func->ast_func_call.args, expr);
         front = current_token();
       }
@@ -148,7 +152,7 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
 
   else if (front->type == LPAREN) {
     ast_node *expr = NULL;
-    if (!(expr = try_parse_expr(buf, toks, i)))
+    if (!(expr = try_parse_expr(buf, toks)))
       error_expected("expression");
 
     front = consume();
@@ -161,16 +165,16 @@ ast_node *try_parse_factor(str buf, dyn_array *toks, size_t *i) {
   return NULL;
 }
 
-ast_node *try_parse_term(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_term(str buf, dyn_array *toks) {
   ast_node *lhs = NULL;
-  if (!(lhs = try_parse_factor(buf, toks, i)))
+  if (!(lhs = try_parse_factor(buf, toks)))
     error_expected("factor expression");
 
   Token *front = current_token();
   while (front->type == ASTERISK || front->type == SLASH) {
     consume_discard();
     ast_node *rhs = NULL;
-    if (!(rhs = try_parse_factor(buf, toks, i)))
+    if (!(rhs = try_parse_factor(buf, toks)))
       error_expected("factor expression");
 
     lhs = create_binop(lhs, rhs, (front->type == ASTERISK) ? OP_TIMES : OP_DIV);
@@ -181,16 +185,16 @@ ast_node *try_parse_term(str buf, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
-ast_node *try_parse_cond(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_cond(str buf, dyn_array *toks) {
   ast_node *lhs = NULL;
-  if (!(lhs = try_parse_term(buf, toks, i)))
+  if (!(lhs = try_parse_term(buf, toks)))
     error_expected("terminal expression");
 
   Token *front = current_token();
   while (front->type == PLUS || front->type == MINUS) {
     consume_discard();
     ast_node *rhs = NULL;
-    if (!(rhs = try_parse_term(buf, toks, i)))
+    if (!(rhs = try_parse_term(buf, toks)))
       error_expected("terminal expression");
 
     lhs = create_binop(lhs, rhs, (front->type == PLUS) ? OP_PLUS : OP_MINUS);
@@ -201,9 +205,9 @@ ast_node *try_parse_cond(str buf, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
-ast_node *try_parse_equality(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_equality(str buf, dyn_array *toks) {
   ast_node *lhs = NULL;
-  if (!(lhs = try_parse_cond(buf, toks, i)))
+  if (!(lhs = try_parse_cond(buf, toks)))
     error_expected("conditional expression");
 
   Token *front = current_token();
@@ -211,7 +215,7 @@ ast_node *try_parse_equality(str buf, dyn_array *toks, size_t *i) {
          front->type == LT) {
     consume_discard();
     ast_node *rhs = NULL;
-    if (!(rhs = try_parse_cond(buf, toks, i)))
+    if (!(rhs = try_parse_cond(buf, toks)))
       error_expected("conditional expression");
 
     BinOpType op;
@@ -231,16 +235,16 @@ ast_node *try_parse_equality(str buf, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
-ast_node *try_parse_expr(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_expr(str buf, dyn_array *toks) {
   ast_node *lhs = NULL;
-  if (!(lhs = try_parse_equality(buf, toks, i)))
+  if (!(lhs = try_parse_equality(buf, toks)))
     error_expected("equality expression");
 
   Token *front = current_token();
   while (front->type == EQEQ || front->type == NEQ) {
     consume_discard();
     ast_node *rhs = NULL;
-    if (!(rhs = try_parse_equality(buf, toks, i)))
+    if (!(rhs = try_parse_equality(buf, toks)))
       error_expected("equality expression");
 
     lhs = create_binop(lhs, rhs, (front->type == EQEQ) ? OP_EQEQ : OP_NEQ);
@@ -251,7 +255,7 @@ ast_node *try_parse_expr(str buf, dyn_array *toks, size_t *i) {
   return lhs;
 }
 
-ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_stmt(str buf, dyn_array *toks) {
   Token *front = current_token();
 
   ast_node *stmt = NULL;
@@ -270,7 +274,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\'=\'");
 
     ast_node *expr = NULL;
-    if (!(expr = try_parse_expr(buf, toks, i)))
+    if (!(expr = try_parse_expr(buf, toks)))
       error_expected("expression");
 
     front = consume();
@@ -288,7 +292,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     consume_discard();
 
     ast_node *expr = NULL;
-    if (!(expr = try_parse_expr(buf, toks, i)))
+    if (!(expr = try_parse_expr(buf, toks)))
       error_expected("expression");
 
     front = consume();
@@ -305,7 +309,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\'(\'");
 
     ast_node *pred = NULL;
-    if (!(pred = try_parse_expr(buf, toks, i)))
+    if (!(pred = try_parse_expr(buf, toks)))
       error_expected("predicate");
 
     front = consume();
@@ -313,7 +317,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\')\'");
 
     ast_node *scope = NULL;
-    if (!(scope = try_parse_stmt(buf, toks, i)))
+    if (!(scope = try_parse_stmt(buf, toks)))
       error_expected("scope or statement");
 
     stmt = create_if_stmt(pred, scope, NULL);
@@ -323,14 +327,14 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
     if (front->type == ELSE) {
       consume_discard();
 
-      if (!(alt = try_parse_stmt(buf, toks, i)))
+      if (!(alt = try_parse_stmt(buf, toks)))
         error_expected("else scope or statement");
     }
 
     stmt->ast_if_stmt.alt = alt;
 
   } else if (front->type == LBRACE) {
-    if (!(stmt = try_parse_scope(buf, toks, i)))
+    if (!(stmt = try_parse_scope(buf, toks)))
       error_expected("scope");
 
   } else if (front->type == WHILE) {
@@ -341,7 +345,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\'(\'");
 
     ast_node *pred = NULL;
-    if (!(pred = try_parse_expr(buf, toks, i)))
+    if (!(pred = try_parse_expr(buf, toks)))
       error_expected("predicate expression");
 
     front = consume();
@@ -349,7 +353,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
       error_expected("\')\'");
 
     ast_node *scope = NULL;
-    if (!(scope = try_parse_stmt(buf, toks, i)))
+    if (!(scope = try_parse_stmt(buf, toks)))
       error_expected("scope or statement");
 
     stmt = create_while_stmt(pred, scope);
@@ -358,7 +362,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks, size_t *i) {
   return stmt;
 }
 
-ast_node *try_parse_scope(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_scope(str buf, dyn_array *toks) {
   Token *front = consume();
   if (front->type != LBRACE)
     error_expected("\'{\'");
@@ -366,7 +370,7 @@ ast_node *try_parse_scope(str buf, dyn_array *toks, size_t *i) {
   ast_node *scope = create_scope();
 
   ast_node *stmt = NULL;
-  while ((stmt = try_parse_stmt(buf, toks, i))) {
+  while ((stmt = try_parse_stmt(buf, toks))) {
     dyn_push(scope->ast_scope.stmts, stmt);
 
     front = current_token();
@@ -379,7 +383,7 @@ ast_node *try_parse_scope(str buf, dyn_array *toks, size_t *i) {
   return scope;
 }
 
-ast_node *try_parse_funcdecl(str buf, dyn_array *toks, size_t *i) {
+ast_node *try_parse_funcdecl(str buf, dyn_array *toks) {
   Token *front = consume();
 
   if (!isType(front->type))
@@ -400,14 +404,14 @@ ast_node *try_parse_funcdecl(str buf, dyn_array *toks, size_t *i) {
 
   front = current_token();
   ast_node *param = NULL;
-  if (front->type != RPAREN && (param = try_parse_param(buf, toks, i))) {
+  if (front->type != RPAREN && (param = try_parse_param(buf, toks))) {
     dyn_push(func->ast_func_decl.params, param);
 
     front = current_token();
 
     if (front->type == COMMA) {
       consume_discard();
-      while ((param = try_parse_param(buf, toks, i))) {
+      while ((param = try_parse_param(buf, toks))) {
         dyn_push(func->ast_func_decl.params, param);
 
         front = current_token();
@@ -424,7 +428,7 @@ ast_node *try_parse_funcdecl(str buf, dyn_array *toks, size_t *i) {
 
   consume_discard();
 
-  func->ast_func_decl.scope = try_parse_scope(buf, toks, i);
+  func->ast_func_decl.scope = try_parse_scope(buf, toks);
 
   return func;
 }
@@ -432,11 +436,11 @@ ast_node *try_parse_funcdecl(str buf, dyn_array *toks, size_t *i) {
 ast_node *try_parse_prgm(str buf, dyn_array *toks) {
   ast_node *ast = create_prgm();
 
-  size_t i = 0;
   while (i + 1 < toks->len) {
     ast_node *func = NULL;
-    if ((func = try_parse_funcdecl(buf, toks, &i))) {
+    if ((func = try_parse_funcdecl(buf, toks))) {
       dyn_push(ast->ast_prgm.func_decls, func);
+
     } else {
       fprintf(stderr, "Tried to parse function declaration and failed.\n");
       break;

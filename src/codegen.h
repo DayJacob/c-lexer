@@ -9,4 +9,4 @@
 
 void generate_x64(ast_node *root, FILE *out);
 void generate_arm(ast_node *root, FILE *out);
-void generate_llvm(ast_node *root, dyn_array *table, FILE *out);
+void generate_llvm(ast_node *root, FILE *out);

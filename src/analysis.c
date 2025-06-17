@@ -34,7 +34,41 @@ void analyze(ast_node *root) {
       if (root->value != expr->value) {
         ast_node *cast =
             create_unop(expr, getImplicitCastOp(root->value, expr->value));
+        cast->value = root->value;
         root->ast_stmt.expr = cast;
+      }
+    } break;
+
+    case EXPR_BINOP: {
+      analyze(root->ast_binary_op.left);
+      analyze(root->ast_binary_op.right);
+
+      if (root->value != root->ast_binary_op.left->value) {
+        ast_node *cast = create_unop(
+            root->ast_binary_op.left,
+            getImplicitCastOp(root->value, root->ast_binary_op.left->value));
+        cast->value = root->value;
+        root->ast_binary_op.left = cast;
+      }
+
+      if (root->value != root->ast_binary_op.right->value) {
+        ast_node *cast = create_unop(
+            root->ast_binary_op.right,
+            getImplicitCastOp(root->value, root->ast_binary_op.right->value));
+        cast->value = root->value;
+        root->ast_binary_op.right = cast;
+      }
+    } break;
+
+    case EXPR_UNOP: {
+      analyze(root->ast_unary_op.right);
+
+      if (root->value != root->ast_unary_op.right->value) {
+        ast_node *cast = create_unop(
+            root->ast_unary_op.right,
+            getImplicitCastOp(root->value, root->ast_unary_op.right->value));
+        cast->value = root->value;
+        root->ast_unary_op.right = cast;
       }
     } break;
 
