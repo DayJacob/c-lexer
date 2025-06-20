@@ -1,2 +1,7 @@
+# Ignore object files, build dir, and LLVM IR files
 *.o
 build/*
+*.ll
+
+# IDE specific
+.vscode
