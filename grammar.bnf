@@ -1,0 +1,37 @@
+PRGM ::= FUNC_DECL*
+
+FUNC_DECL ::= TYPE ident '(' PARAM_LIST? ')' SCOPE
+
+SCOPE ::= '{' STMT* '}'
+
+PARAM_LIST ::= PARAM (',' PARAM)*
+PARAM ::= TYPE ident
+
+STMT ::= 'return' EXPR ';' 
+       | TYPE ident '=' EXPR ';' 
+       | EXPR ';'
+       | COND_STMT
+       | SCOPE
+       | WHILE
+       | DO_WHILE
+
+WHILE ::= 'while' '(' EXPR ')' STMT
+DO_WHILE ::= 'do' STMT 'while' '(' EXPR ')' ';'
+
+COND_STMT ::= IF '(' EXPR ')' STMT (ELSE STMT)?
+
+EXPR ::= EQUALITY (('==' | '!=') EQUALITY)*
+EQUALITY ::= COND (('>' | '>=' | '<' | '<=') COND)*
+COND ::= TERM (('+' | '-') TERM)*
+TERM ::= FACTOR (('*' | '/') FACTOR)*
+FACTOR ::= ('+' | '-') ATOM
+ATOM ::= NUM_LIT 
+       | ident 
+       | '(' EXPR ')' 
+       | ident '(' ARG_LIST? ')'
+
+ARG_LIST ::= EXPR (',' EXPR)*
+
+NUM_LIT ::= intlit | floatlit
+
+TYPE ::= 'int' | 'float' | 'char' | 'short' | 'long' | 'double' | 'void'

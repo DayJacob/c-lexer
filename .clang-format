@@ -1,0 +1,12 @@
+BasedOnStyle: "LLVM"
+IndentWidth: 2
+
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
+
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AlignCaseColons: false
+
+IndentCaseLabels: true

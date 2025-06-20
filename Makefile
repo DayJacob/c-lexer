@@ -5,6 +5,9 @@ TEST:=test
 
 COMPILE_FLAGS:=-std=c11 -Wall -Werror
 
+SRC_FILES:=$(wildcard $(SRC)/*.c $(SRC)/utils/*.c)
+OBJ_FILES:=$(patsubst $(SRC)/%.c, $(BUILD)/obj/%.o, $(SRC_FILES))
+
 .PHONY: build run test clean debug release
 
 default: build run
@@ -15,20 +18,30 @@ debug: build run
 release: COMPILE_FLAGS +=-O3
 release: build run
 
-build:
-	$(CC) $(COMPILE_FLAGS) -c $(SRC)/utils/dynarray.c -o $(BUILD)/dynarray.o
-	$(CC) $(COMPILE_FLAGS) -c $(SRC)/tokens.c -o $(BUILD)/tokens.o
-	$(CC) $(COMPILE_FLAGS) $(SRC)/main.c $(BUILD)/tokens.o $(BUILD)/dynarray.o -o $(BUILD)/clexer
+build: $(BUILD)/clexer
+
+$(BUILD)/clexer: $(OBJ_FILES)
+	@$(CC) $(COMPILE_FLAGS) -o $(BUILD)/minic $^
+
+$(BUILD)/obj/%.o: $(SRC)/%.c
+	@mkdir -p $(@D)
+	$(CC) $(COMPILE_FLAGS) -c -o $@ $<
 
 run:
-	./$(BUILD)/clexer simpletest.c
+	./$(BUILD)/minic simpletest.c
+	@$(CC) -S -emit-llvm -O0 simpletest.c
+	@cat $(BUILD)/out.ll
 
 test: COMPILE_FLAGS +=-O3
 test:
 	$(CC) $(COMPILE_FLAGS) -c $(SRC)/utils/dynarray.c -o $(BUILD)/dynarray.o
 	$(CC) $(COMPILE_FLAGS) $(BUILD)/dynarray.o $(TEST)/dyntest.c -o $(BUILD)/dyntest
+	$(CC) $(COMPILE_FLAGS) -c $(SRC)/utils/ast.c -o $(BUILD)/ast.o
+	$(CC) $(COMPILE_FLAGS) $(BUILD)/ast.o $(BUILD)/dynarray.o $(TEST)/asttest.c -o $(BUILD)/asttest
 	./$(BUILD)/dyntest
+	./$(BUILD)/asttest
 
 clean:
-	rm -r $(BUILD)/*
+	rm -rf $(BUILD)/obj/*
+	rm -r $(BUILD)/minic
 

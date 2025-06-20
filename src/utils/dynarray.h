@@ -1,14 +1,7 @@
 #pragma once
 
+#include "assert.h"
 #include <stdlib.h>
-
-#define assert(_e, _m)                                                         \
-  {                                                                            \
-    if (!(_e)) {                                                               \
-      fprintf(stderr, "%s\n", _m);                                             \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  }
 
 typedef struct {
   size_t len;
