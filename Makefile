@@ -28,8 +28,8 @@ $(BUILD)/obj/%.o: $(SRC)/%.c
 	$(CC) $(COMPILE_FLAGS) -c -o $@ $<
 
 run:
-	./$(BUILD)/minic simpletest.c
-	@$(CC) -S -emit-llvm -O0 simpletest.c
+	./$(BUILD)/minic test.c
+	@$(CC) -S -emit-llvm -O0 test.c
 	@cat $(BUILD)/out.ll
 
 test: COMPILE_FLAGS +=-O3

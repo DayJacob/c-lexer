@@ -10,6 +10,7 @@ PARAM ::= TYPE ident
 STMT ::= 'return' EXPR ';' 
        | TYPE ident '=' EXPR ';' 
        | TYPE ident ';'
+       | ident '=' EXPR ';'
        | EXPR ';'
        | COND_STMT
        | SCOPE

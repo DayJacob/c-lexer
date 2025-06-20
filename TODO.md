@@ -5,7 +5,7 @@
 - Start basic code generation (LLVM IR, x86, and ARM) (LLVM ✅)
 - Add parsing support for while and do-while ✅
 - Refactor symbol table to be constructed in parsing phase, not codegen phase ✅
-- Consider adding intermediate and implicit casting nodes into the AST (unary ops)
+- Consider adding intermediate and implicit casting nodes into the AST (unary ops) ✅
 - Consider adding CFG pass to optimize conditional statements
 - Add type checking and conversion for generic statements (not just return statements)
 - Consider refactoring AST memory allocation strategy to arena allocator instead of heap allocator ✅

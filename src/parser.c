@@ -276,6 +276,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks) {
     front = consume();
     if (front->type == SEMI) {
       stmt = create_vardecl(value, ident.chars);
+
     } else if (front->type == EQUALS) {
       ast_node *expr = NULL;
       if (!(expr = try_parse_expr(buf, toks)))
@@ -364,6 +365,27 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks) {
       error_expected("scope or statement");
 
     stmt = create_while_stmt(pred, scope);
+
+  } else if (front->type == IDENT) {
+    consume_discard();
+    str ident = parseString(buf, front->start);
+
+    Symbol *sym = findInSymTable(ident.chars);
+    assert(sym, "Identifier referenced before declaration.");
+
+    front = consume();
+    if (front->type != EQUALS)
+      error_expected("\'=\'");
+
+    ast_node *expr = NULL;
+    if (!(expr = try_parse_expr(buf, toks)))
+      error_expected("expression");
+
+    front = consume();
+    if (front->type != SEMI)
+      error_expected("\';\'");
+
+    stmt = create_reassign(sym->type, sym->ident, expr);
   }
 
   return stmt;

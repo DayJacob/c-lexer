@@ -46,6 +46,7 @@ typedef enum {
   RET_STMT,
   VAR_DECL,
   VAR_ASSIGN,
+  REASSIGN,
   IF_STMT,
   ELSE_STMT,
   WHILE_STMT,
@@ -133,6 +134,7 @@ ast_node *create_funccall(char *ident, TokenType value);
 ast_node *create_param(TokenType value, char *ident);
 ast_node *create_vardecl(TokenType value, char *ident);
 ast_node *create_varassign(TokenType value, char *ident, ast_node *expr);
+ast_node *create_reassign(TokenType value, char *ident, ast_node *expr);
 ast_node *create_scope();
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt);
 ast_node *create_else_stmt(ast_node *scope);

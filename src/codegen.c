@@ -6,6 +6,8 @@
 #include <string.h>
 
 static size_t ssa = 0;
+static size_t loopIndex = 0;
+static size_t ifIndex = 0;
 static TokenType ret_type;
 
 bool isComptimeExpr(ast_node *root) {
@@ -148,6 +150,25 @@ void generate_llvm(ast_node *root, FILE *out) {
 
         } break;
 
+        case REASSIGN: {
+          Symbol *var = findInSymTable(root->ast_stmt.var_assign.ident);
+
+          if (isComptimeExpr(root->ast_stmt.var_assign.expr)) {
+            double num = eval_tree(root->ast_stmt.var_assign.expr);
+            fprintf(out, "  store i32 %i, ptr %%%lu, align 4\n", (int)num,
+                    ssa - 1);
+
+            break;
+          }
+
+          generate_llvm(root->ast_stmt.var_assign.expr, out);
+
+          fprintf(out, "  store %s %%%lu, ptr %%%lu, align %lu\n",
+                  asLLVMType(root->value), ssa - 1, var->loc,
+                  getAlignment(root->value));
+
+        } break;
+
         case RET_STMT: {
           if (isComptimeExpr(root->ast_stmt.ret.expr)) {
             double num = eval_tree(root->ast_stmt.ret.expr);
@@ -177,19 +198,44 @@ void generate_llvm(ast_node *root, FILE *out) {
         case IF_STMT: {
           generate_llvm(root->ast_stmt.if_stmt.pred, out);
 
-          fprintf(out, "  br i1 %%%lu, label %%then, label %%%s\n", ssa - 1,
-                  (root->ast_stmt.if_stmt.alt) ? "else" : "after");
-          fprintf(out, "\nthen:\n");
+          fprintf(out, "  br i1 %%%lu, label %%then.%lu, label %%%s.%lu\n",
+                  ssa - 1, ifIndex,
+                  (root->ast_stmt.if_stmt.alt) ? "else" : "after", ifIndex);
+          fprintf(out, "\nthen.%lu:\n", ifIndex);
           ++ssa;
 
           generate_llvm(root->ast_stmt.if_stmt.scope, out);
+          fprintf(out, "  br label %%after.%lu\n", ifIndex);
 
           if (root->ast_stmt.if_stmt.alt) {
-            fprintf(out, "\nelse:\n");
+            fprintf(out, "\nelse.%lu:\n", ifIndex);
             generate_llvm(root->ast_stmt.if_stmt.alt, out);
+            fprintf(out, "  br label %%after.%lu\n", ifIndex);
           }
 
-          fprintf(out, "\nafter:\n");
+          fprintf(out, "\nafter.%lu:\n", ifIndex);
+
+          ++ifIndex;
+
+        } break;
+
+        case WHILE_STMT: {
+          size_t loop_start = ssa;
+          fprintf(out, "  br label %%%lu\n", loop_start);
+          fprintf(out, "\n%lu:\n", loop_start);
+          ++ssa;
+
+          generate_llvm(root->ast_stmt.while_stmt.pred, out);
+
+          fprintf(out, "  br i1 %%%lu, label %%loop.%lu, label %%exit.%lu\n",
+                  ssa - 1, loopIndex, loopIndex);
+          fprintf(out, "\nloop.%lu:\n", loopIndex);
+          ++ssa;
+
+          generate_llvm(root->ast_stmt.while_stmt.scope, out);
+          fprintf(out, "  br label %%%lu\n", loop_start);
+
+          fprintf(out, "\nexit.%lu:\n", loopIndex);
 
         } break;
 
@@ -285,6 +331,38 @@ void generate_llvm(ast_node *root, FILE *out) {
 
         case OP_EQEQ: {
           fprintf(out, "  %%%lu = icmp eq %s ", ssa, asLLVMType(root->value));
+
+          if (!lhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li, ",
+                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
+
+          if (!rhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
+
+          ++ssa;
+
+        } break;
+
+        case OP_GT: {
+          fprintf(out, "  %%%lu = icmp sgt %s ", ssa, asLLVMType(root->value));
+
+          if (!lhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li, ",
+                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
+
+          if (!rhs_comptime)
+            fprintf(out, "%%");
+          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
+
+          ++ssa;
+
+        } break;
+
+        case OP_LT: {
+          fprintf(out, "  %%%lu = icmp slt %s ", ssa, asLLVMType(root->value));
 
           if (!lhs_comptime)
             fprintf(out, "%%");

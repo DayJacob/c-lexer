@@ -1,10 +1,13 @@
 int main() {
-  int x = 4;
-  int y = 2;
+  int ret_val = 0;
 
-  int z = 0;
-  if (y > x)
-    z = 1;
+  int x = 2;
+  if (x > 0)
+    ret_val = x * 3;
 
-  return z;
+  int y = 5;
+  if (y < x)
+    ret_val = y / 3;
+
+  return ret_val;
 }

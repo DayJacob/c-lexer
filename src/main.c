@@ -55,6 +55,8 @@ void printTree(ast_node *root) {
           printf("VAR ASSIGN %s\n", root->ast_stmt.var_assign.ident);
           printTree(root->ast_stmt.var_assign.expr);
           break;
+
+        default: break;
       }
 
     } break;
@@ -147,6 +149,7 @@ int main(int argc, char *argv[]) {
   analyze(ast);
 
   printTree(ast);
+  printf("\n");
 
   // Attempt to open a file to write generated LLVM IR, panic on failure
   FILE *out = fopen("build/out.ll", "w");

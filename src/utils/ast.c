@@ -75,6 +75,15 @@ ast_node *create_param(TokenType type, char *ident) {
   return node;
 }
 
+ast_node *create_vardecl(TokenType value, char *ident) {
+  ast_node *node = arena_alloc_type(&alloc, ast_node);
+  node->type = STMT;
+  node->value = value;
+  node->ast_stmt.type = VAR_DECL;
+  node->ast_stmt.ident_decl = ident;
+  return node;
+}
+
 ast_node *create_varassign(TokenType value, char *ident, ast_node *expr) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
   node->type = STMT;
@@ -85,12 +94,13 @@ ast_node *create_varassign(TokenType value, char *ident, ast_node *expr) {
   return node;
 }
 
-ast_node *create_vardecl(TokenType value, char *ident) {
+ast_node *create_reassign(TokenType value, char *ident, ast_node *expr) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
   node->type = STMT;
   node->value = value;
-  node->ast_stmt.type = VAR_ASSIGN;
-  node->ast_stmt.ident_decl = ident;
+  node->ast_stmt.type = REASSIGN;
+  node->ast_stmt.var_assign.ident = ident;
+  node->ast_stmt.var_assign.expr = expr;
   return node;
 }
 
