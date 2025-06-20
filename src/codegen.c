@@ -112,7 +112,7 @@ void generate_llvm(ast_node *root, FILE *out) {
 
       generate_llvm(root->ast_func_decl.scope, out);
 
-      fprintf(out, "}\n");
+      fprintf(out, "}\n\n");
 
     } break;
 
@@ -361,13 +361,34 @@ void generate_llvm(ast_node *root, FILE *out) {
 
     case IDENT_NODE: {
       Symbol *ident = findInSymTable(root->ident);
-      assert(ident, "Undefined Symbol.\n");
+      assert(ident, "Identifier referenced before declaration.\n");
 
       fprintf(out, "\t%%%lu = load %s, ptr %%%lu, align %lu\n", ssa,
               asLLVMType(ident->type), ident->loc, getAlignment(ident->type));
       ++ssa;
 
       root->value = ident->type;
+
+    } break;
+
+    case FUNC_CALL: {
+      Symbol *ident = findInSymTable(root->ast_func_call.ident);
+      assert(ident, "Call to undefined function.\n");
+
+      for (size_t i = 0; i < root->ast_func_call.args->len; ++i) {
+        ast_node *expr = (ast_node *)root->ast_func_call.args->el[i];
+        if (isComptimeExpr(expr)) {
+          // double num = eval_tree(expr);
+        }
+
+        generate_llvm((ast_node *)root->ast_func_call.args->el[i], out);
+      }
+
+      fprintf(out, "\t%%%lu = call %s @%s(", ssa, asLLVMType(ident->type),
+              ident->ident);
+      ssa++;
+
+      fprintf(out, ")\n");
 
     } break;
 

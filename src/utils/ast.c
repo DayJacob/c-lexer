@@ -77,10 +77,10 @@ ast_node *create_param(TokenType type, char *ident) {
   return node;
 }
 
-ast_node *create_funccall(char *ident) {
+ast_node *create_funccall(char *ident, TokenType value) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
   node->type = FUNC_CALL;
-  node->value = EMPTY;
+  node->value = value;
   node->ast_func_call.ident = ident;
   node->ast_func_call.args = dyn_init(2);
   return node;

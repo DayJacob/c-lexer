@@ -128,7 +128,11 @@ ast_node *try_parse_factor(str buf, dyn_array *toks) {
 
     consume_discard();
 
-    ast_node *func = create_funccall(parseString(buf, front->start).chars);
+    char *ident = parseString(buf, front->start).chars;
+    Symbol *sym = findInSymTable(ident);
+    assert(sym, "Call to undeclared function.\n");
+
+    ast_node *func = create_funccall(ident, sym->type);
 
     front = current_token();
     ast_node *expr = NULL;
@@ -429,6 +433,11 @@ ast_node *try_parse_funcdecl(str buf, dyn_array *toks) {
   consume_discard();
 
   func->ast_func_decl.scope = try_parse_scope(buf, toks);
+
+  Symbol *sym = (Symbol *)malloc(sizeof(Symbol));
+  sym->ident = ident.chars;
+  sym->type = ret_type;
+  dyn_push(table, sym);
 
   return func;
 }

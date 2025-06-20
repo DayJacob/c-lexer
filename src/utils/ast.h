@@ -120,7 +120,7 @@ ast_node *create_funcdecl(TokenType ret, char *ident, ast_node *scope);
 ast_node *create_stmt(StmtType type, TokenType value, char *ident,
                       ast_node *expr);
 ast_node *create_param(TokenType type, char *ident);
-ast_node *create_funccall(char *ident);
+ast_node *create_funccall(char *ident, TokenType value);
 ast_node *create_scope();
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt);
 ast_node *create_else_stmt(ast_node *scope);

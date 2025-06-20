@@ -130,35 +130,12 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
             ptr->type = MODULO;
         }
 
-        case '{': {
-          ptr->type = LBRACE;
-
-        } break;
-
-        case '}': {
-          ptr->type = RBRACE;
-
-        } break;
-
-        case '[': {
-          ptr->type = LBRACKET;
-
-        } break;
-
-        case ']': {
-          ptr->type = RBRACKET;
-
-        } break;
-
-        case '(': {
-          ptr->type = LPAREN;
-
-        } break;
-
-        case ')': {
-          ptr->type = RPAREN;
-
-        } break;
+        case '{': ptr->type = LBRACE; break;
+        case '}': ptr->type = RBRACE; break;
+        case '[': ptr->type = LBRACKET; break;
+        case ']': ptr->type = RBRACKET; break;
+        case '(': ptr->type = LPAREN; break;
+        case ')': ptr->type = RPAREN; break;
 
         case '=': {
           if (at(buf, i + 1) == '=') {
@@ -169,20 +146,9 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
 
         } break;
 
-        case ';': {
-          ptr->type = SEMI;
-
-        } break;
-
-        case ':': {
-          ptr->type = COLON;
-
-        } break;
-
-        case ',': {
-          ptr->type = COMMA;
-
-        } break;
+        case ';': ptr->type = SEMI; break;
+        case ':': ptr->type = COLON; break;
+        case ',': ptr->type = COMMA; break;
 
         case '>': {
           if (at(buf, i + 1) == '=') {
@@ -227,20 +193,9 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
 
         } break;
 
-        case '~': {
-          ptr->type = TILDE;
-
-        } break;
-
-        case '.': {
-          ptr->type = PERIOD;
-
-        } break;
-
-        case '#': {
-          ptr->type = HASH;
-
-        } break;
+        case '~': ptr->type = TILDE; break;
+        case '.': ptr->type = PERIOD; break;
+        case '#': ptr->type = HASH; break;
 
         case '&': {
           if (at(buf, i + 1) == '&') {
@@ -275,10 +230,7 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
 
         } break;
 
-        case '?': {
-          ptr->type = QUESTION;
-
-        } break;
+        case '?':  ptr->type = QUESTION; break;
 
         case '\\': {
           ptr->type = BACKSLASH;
