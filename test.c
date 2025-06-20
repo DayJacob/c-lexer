@@ -1,13 +1,10 @@
 int main() {
-  int x = 0;
+  int x = 4;
+  int y = 2;
 
-  if (x > 5) {
-    int y = 2;
-  }
+  int z = 0;
+  if (y > x)
+    z = 1;
 
-  while (x < 3) {
-    int z = 4;
-  }
-
-  return 0;
+  return z;
 }

@@ -17,10 +17,6 @@ typedef enum {
   IDENT_NODE,
   PARAM,
   FUNC_CALL,
-  IF_STMT,
-  ELSE_STMT,
-  SCOPE,
-  WHILE_STMT
 } NodeType;
 
 typedef enum {
@@ -45,7 +41,16 @@ typedef enum {
   EXTEND,
   TRUNC
 } UnOpType;
-typedef enum { STMT_RET, VAR_DECL } StmtType;
+
+typedef enum {
+  RET_STMT,
+  VAR_DECL,
+  VAR_ASSIGN,
+  IF_STMT,
+  ELSE_STMT,
+  WHILE_STMT,
+  SCOPE
+} StmtType;
 
 // TODO: Refactor tagged union?
 typedef struct ast_node {
@@ -53,78 +58,86 @@ typedef struct ast_node {
   TokenType value;
 
   union {
-    double num_lit;
+    double num_lit; // Number literal
 
-    char *ident;
+    char *ident; // Identifier/Function parameter
 
-    struct {
+    struct { // Binary operation
       BinOpType type;
       struct ast_node *left, *right;
     } ast_binary_op;
 
-    struct {
+    struct { // Unary operation
       UnOpType type;
       struct ast_node *right;
     } ast_unary_op;
 
-    struct {
+    struct { // Program node
       dyn_array *func_decls;
     } ast_prgm;
 
-    struct {
+    struct { // Function declaration
       char *ident;
       dyn_array *params;
       struct ast_node *scope;
     } ast_func_decl;
 
-    // TODO: Consider adding identifiers to scopes
-    struct {
-      dyn_array *stmts;
-    } ast_scope;
-
-    struct {
-      StmtType type;
-      char *ident;
-      struct ast_node *expr;
-    } ast_stmt;
-
-    struct {
-      char *ident;
-    } ast_param;
-
-    struct {
+    struct { // Function call
       char *ident;
       dyn_array *args;
     } ast_func_call;
 
-    struct {
-      struct ast_node *pred, *scope, *alt;
-    } ast_if_stmt;
+    struct { // Statement
+      StmtType type;
 
-    struct {
-      struct ast_node *scope;
-    } ast_else_stmt;
+      union {
+        char *ident_decl; // Variable declaration (no assignment)
 
-    struct {
-      struct ast_node *pred, *scope;
-    } ast_while_stmt;
+        struct { // Variable declaration with assignment
+          char *ident;
+          struct ast_node *expr;
+        } var_assign;
+
+        struct { // Return
+          struct ast_node *expr;
+        } ret;
+
+        struct { // If branch
+          struct ast_node *pred, *scope, *alt;
+        } if_stmt;
+
+        struct { // Else branch
+          struct ast_node *scope;
+        } else_stmt;
+
+        struct { // While loop
+          struct ast_node *pred, *scope;
+        } while_stmt;
+
+        // TODO: Consider adding identifiers to scopes
+        struct { // Compound statement
+          dyn_array *stmts;
+        } scope;
+      };
+    } ast_stmt;
   };
 } ast_node;
 
 ast_node *create_binop(ast_node *left, ast_node *right, BinOpType op);
-ast_node *create_unop(ast_node *right, UnOpType);
+ast_node *create_unop(ast_node *right, UnOpType op);
 ast_node *create_num(double num, TokenType value);
 ast_node *create_ident(char *ident, TokenType value);
 ast_node *create_prgm();
 ast_node *create_funcdecl(TokenType ret, char *ident, ast_node *scope);
-ast_node *create_stmt(StmtType type, TokenType value, char *ident,
-                      ast_node *expr);
-ast_node *create_param(TokenType type, char *ident);
 ast_node *create_funccall(char *ident, TokenType value);
+ast_node *create_param(TokenType value, char *ident);
+ast_node *create_vardecl(TokenType value, char *ident);
+ast_node *create_varassign(TokenType value, char *ident, ast_node *expr);
 ast_node *create_scope();
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt);
 ast_node *create_else_stmt(ast_node *scope);
 ast_node *create_while_stmt(ast_node *pred, ast_node *scope);
+ast_node *create_return(TokenType value, ast_node *expr);
 
 UnOpType getImplicitCastOp(TokenType, TokenType);
 

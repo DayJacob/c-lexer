@@ -58,25 +58,6 @@ ast_node *create_funcdecl(TokenType ret, char *ident, ast_node *scope) {
   return node;
 }
 
-ast_node *create_stmt(StmtType type, TokenType value, char *ident,
-                      ast_node *expr) {
-  ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = STMT;
-  node->value = value;
-  node->ast_stmt.type = type;
-  node->ast_stmt.ident = ident;
-  node->ast_stmt.expr = expr;
-  return node;
-}
-
-ast_node *create_param(TokenType type, char *ident) {
-  ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = PARAM;
-  node->value = type;
-  node->ast_param.ident = ident;
-  return node;
-}
-
 ast_node *create_funccall(char *ident, TokenType value) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
   node->type = FUNC_CALL;
@@ -86,38 +67,78 @@ ast_node *create_funccall(char *ident, TokenType value) {
   return node;
 }
 
+ast_node *create_param(TokenType type, char *ident) {
+  ast_node *node = arena_alloc_type(&alloc, ast_node);
+  node->type = PARAM;
+  node->value = type;
+  node->ident = ident;
+  return node;
+}
+
+ast_node *create_varassign(TokenType value, char *ident, ast_node *expr) {
+  ast_node *node = arena_alloc_type(&alloc, ast_node);
+  node->type = STMT;
+  node->value = value;
+  node->ast_stmt.type = VAR_ASSIGN;
+  node->ast_stmt.var_assign.ident = ident;
+  node->ast_stmt.var_assign.expr = expr;
+  return node;
+}
+
+ast_node *create_vardecl(TokenType value, char *ident) {
+  ast_node *node = arena_alloc_type(&alloc, ast_node);
+  node->type = STMT;
+  node->value = value;
+  node->ast_stmt.type = VAR_ASSIGN;
+  node->ast_stmt.ident_decl = ident;
+  return node;
+}
+
 ast_node *create_scope() {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = SCOPE;
+  node->type = STMT;
   node->value = EMPTY;
-  node->ast_scope.stmts = dyn_init(4);
+  node->ast_stmt.type = SCOPE;
+  node->ast_stmt.scope.stmts = dyn_init(4);
   return node;
 }
 
 ast_node *create_if_stmt(ast_node *pred, ast_node *scope, ast_node *alt) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = IF_STMT;
+  node->type = STMT;
   node->value = EMPTY;
-  node->ast_if_stmt.pred = pred;
-  node->ast_if_stmt.scope = scope;
-  node->ast_if_stmt.alt = alt;
+  node->ast_stmt.type = IF_STMT;
+  node->ast_stmt.if_stmt.pred = pred;
+  node->ast_stmt.if_stmt.scope = scope;
+  node->ast_stmt.if_stmt.alt = alt;
   return node;
 }
 
 ast_node *create_else_stmt(ast_node *scope) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = ELSE_STMT;
+  node->type = STMT;
   node->value = EMPTY;
-  node->ast_else_stmt.scope = scope;
+  node->ast_stmt.type = ELSE_STMT;
+  node->ast_stmt.else_stmt.scope = scope;
   return node;
 }
 
 ast_node *create_while_stmt(ast_node *pred, ast_node *scope) {
   ast_node *node = arena_alloc_type(&alloc, ast_node);
-  node->type = WHILE_STMT;
+  node->type = STMT;
   node->value = EMPTY;
-  node->ast_while_stmt.pred = pred;
-  node->ast_while_stmt.scope = scope;
+  node->ast_stmt.type = WHILE_STMT;
+  node->ast_stmt.while_stmt.pred = pred;
+  node->ast_stmt.while_stmt.scope = scope;
+  return node;
+}
+
+ast_node *create_return(TokenType value, ast_node *expr) {
+  ast_node *node = arena_alloc_type(&alloc, ast_node);
+  node->type = STMT;
+  node->value = value;
+  node->ast_stmt.type = RET_STMT;
+  node->ast_stmt.ret.expr = expr;
   return node;
 }
 
@@ -159,13 +180,6 @@ void ast_destroy(ast_node *root) {
         curr->ast_func_decl.ident = NULL;
       } break;
 
-      case SCOPE: {
-        for (size_t i = 0; i < curr->ast_scope.stmts->len; ++i)
-          dyn_push(stack, dyn_get(curr->ast_scope.stmts, i));
-
-        dyn_destroy(curr->ast_scope.stmts);
-      } break;
-
       case PRGM: {
         for (size_t i = 0; i < curr->ast_prgm.func_decls->len; ++i)
           dyn_push(stack, dyn_get(curr->ast_prgm.func_decls, i));
@@ -174,11 +188,40 @@ void ast_destroy(ast_node *root) {
       } break;
 
       case STMT: {
-        if (curr->ast_stmt.expr)
-          dyn_push(stack, curr->ast_stmt.expr);
 
-        if (curr->ast_stmt.type == VAR_DECL)
-          free(curr->ast_stmt.ident);
+        switch (curr->ast_stmt.type) {
+          case VAR_DECL: free(curr->ast_stmt.ident_decl); break;
+          case VAR_ASSIGN:
+            free(curr->ast_stmt.var_assign.ident);
+            dyn_push(stack, curr->ast_stmt.var_assign.expr);
+            break;
+          case RET_STMT: dyn_push(stack, curr->ast_stmt.ret.expr); break;
+
+          case SCOPE:    {
+            for (size_t i = 0; i < curr->ast_stmt.scope.stmts->len; ++i)
+              dyn_push(stack, dyn_get(curr->ast_stmt.scope.stmts, i));
+
+            dyn_destroy(curr->ast_stmt.scope.stmts);
+          } break;
+
+          case IF_STMT: {
+            dyn_push(stack, curr->ast_stmt.if_stmt.pred);
+            dyn_push(stack, curr->ast_stmt.if_stmt.scope);
+
+            if (curr->ast_stmt.if_stmt.alt)
+              dyn_push(stack, curr->ast_stmt.if_stmt.alt);
+
+          } break;
+
+          case WHILE_STMT: {
+            dyn_push(stack, curr->ast_stmt.if_stmt.pred);
+            dyn_push(stack, curr->ast_stmt.if_stmt.scope);
+
+          } break;
+
+          default: break;
+        }
+
       } break;
 
       case IDENT_NODE: {
@@ -187,7 +230,7 @@ void ast_destroy(ast_node *root) {
       } break;
 
       case PARAM: {
-        free(curr->ast_param.ident);
+        free(curr->ident);
 
       } break;
 
@@ -197,21 +240,6 @@ void ast_destroy(ast_node *root) {
 
         dyn_destroy(curr->ast_func_call.args);
         free(curr->ast_func_call.ident);
-      } break;
-
-      case IF_STMT: {
-        dyn_push(stack, curr->ast_if_stmt.pred);
-        dyn_push(stack, curr->ast_if_stmt.scope);
-
-        if (curr->ast_if_stmt.alt)
-          dyn_push(stack, curr->ast_if_stmt.alt);
-
-      } break;
-
-      case WHILE_STMT: {
-        dyn_push(stack, curr->ast_if_stmt.pred);
-        dyn_push(stack, curr->ast_if_stmt.scope);
-
       } break;
 
       default: break;

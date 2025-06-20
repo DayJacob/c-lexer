@@ -274,23 +274,26 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks) {
     str ident = parseString(buf, front->start);
 
     front = consume();
-    if (front->type != EQUALS)
-      error_expected("\'=\'");
+    if (front->type == SEMI) {
+      stmt = create_vardecl(value, ident.chars);
+    } else if (front->type == EQUALS) {
+      ast_node *expr = NULL;
+      if (!(expr = try_parse_expr(buf, toks)))
+        error_expected("expression");
 
-    ast_node *expr = NULL;
-    if (!(expr = try_parse_expr(buf, toks)))
-      error_expected("expression");
+      front = consume();
+      if (front->type != SEMI)
+        error_expected("\';\'");
 
-    front = consume();
-    if (front->type != SEMI)
-      error_expected("\';\'");
+      stmt = create_varassign(value, ident.chars, expr);
+
+    } else
+      error_expected("\';\' or \'=\'");
 
     Symbol *sym = (Symbol *)malloc(sizeof(Symbol));
     sym->type = value;
     sym->ident = ident.chars;
     dyn_push(table, sym);
-
-    stmt = create_stmt(VAR_DECL, value, ident.chars, expr);
 
   } else if (front->type == RETURN) {
     consume_discard();
@@ -303,7 +306,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks) {
     if (front->type != SEMI)
       error_expected("\';\'");
 
-    stmt = create_stmt(STMT_RET, VOID, "", expr);
+    stmt = create_return(VOID, expr);
 
   } else if (front->type == IF) {
     consume_discard();
@@ -335,7 +338,7 @@ ast_node *try_parse_stmt(str buf, dyn_array *toks) {
         error_expected("else scope or statement");
     }
 
-    stmt->ast_if_stmt.alt = alt;
+    stmt->ast_stmt.if_stmt.alt = alt;
 
   } else if (front->type == LBRACE) {
     if (!(stmt = try_parse_scope(buf, toks)))
@@ -375,7 +378,7 @@ ast_node *try_parse_scope(str buf, dyn_array *toks) {
 
   ast_node *stmt = NULL;
   while ((stmt = try_parse_stmt(buf, toks))) {
-    dyn_push(scope->ast_scope.stmts, stmt);
+    dyn_push(scope->ast_stmt.scope.stmts, stmt);
 
     front = current_token();
     if (front->type == RBRACE) {

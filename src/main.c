@@ -33,8 +33,8 @@ void printTree(ast_node *root) {
     } break;
 
     case SCOPE: {
-      for (size_t i = 0; i < root->ast_scope.stmts->len; ++i)
-        printTree((ast_node *)dyn_get(root->ast_scope.stmts, i));
+      for (size_t i = 0; i < root->ast_stmt.scope.stmts->len; ++i)
+        printTree((ast_node *)dyn_get(root->ast_stmt.scope.stmts, i));
 
     } break;
 
@@ -42,12 +42,20 @@ void printTree(ast_node *root) {
       printf("STMT: ");
 
       switch (root->ast_stmt.type) {
-        case STMT_RET: printf("RETURN\n"); break;
-        case VAR_DECL: printf("VAR DECL %s\n", root->ast_stmt.ident); break;
-      }
+        case RET_STMT:
+          printf("RETURN\n");
+          printTree(root->ast_stmt.ret.expr);
+          break;
 
-      if (root->ast_stmt.expr)
-        printTree(root->ast_stmt.expr);
+        case VAR_DECL:
+          printf("VAR DECL %s\n", root->ast_stmt.ident_decl);
+          break;
+
+        case VAR_ASSIGN:
+          printf("VAR ASSIGN %s\n", root->ast_stmt.var_assign.ident);
+          printTree(root->ast_stmt.var_assign.expr);
+          break;
+      }
 
     } break;
 

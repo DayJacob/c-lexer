@@ -11,11 +11,11 @@ void analyze(ast_node *root) {
     case FUNC_DECL: {
       ast_node *scope = root->ast_func_decl.scope;
 
-      for (size_t i = 0; i < scope->ast_scope.stmts->len; ++i) {
-        ast_node *stmt = scope->ast_scope.stmts->el[i];
+      for (size_t i = 0; i < scope->ast_stmt.scope.stmts->len; ++i) {
+        ast_node *stmt = scope->ast_stmt.scope.stmts->el[i];
 
         switch (stmt->ast_stmt.type) {
-          case STMT_RET: stmt->value = root->value; break;
+          case RET_STMT: stmt->value = root->value; break;
           default:       break;
         }
 
@@ -24,9 +24,12 @@ void analyze(ast_node *root) {
     } break;
 
     case STMT: {
-      ast_node *expr = root->ast_stmt.expr;
-      if (!expr)
-        return;
+      ast_node *expr = NULL;
+      switch (root->ast_stmt.type) {
+        case RET_STMT:   expr = root->ast_stmt.ret.expr; break;
+        case VAR_ASSIGN: expr = root->ast_stmt.var_assign.expr; break;
+        default:         return;
+      }
 
       analyze(expr);
 
@@ -35,7 +38,12 @@ void analyze(ast_node *root) {
         ast_node *cast =
             create_unop(expr, getImplicitCastOp(root->value, expr->value));
         cast->value = root->value;
-        root->ast_stmt.expr = cast;
+
+        switch (root->ast_stmt.type) {
+          case RET_STMT:   root->ast_stmt.ret.expr = cast; break;
+          case VAR_ASSIGN: root->ast_stmt.var_assign.expr = cast; break;
+          default:         break; // unreachable
+        }
       }
     } break;
 
