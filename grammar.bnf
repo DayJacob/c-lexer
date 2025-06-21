@@ -25,12 +25,13 @@ COND_STMT ::= IF '(' EXPR ')' STMT (ELSE STMT)?
 EXPR ::= EQUALITY (('==' | '!=') EQUALITY)*
 EQUALITY ::= COND (('>' | '>=' | '<' | '<=') COND)*
 COND ::= TERM (('+' | '-') TERM)*
-TERM ::= FACTOR (('*' | '/') FACTOR)*
-FACTOR ::= ('+' | '-') ATOM
+TERM ::= FACTOR (('*' | '/' | '%') FACTOR)*
+FACTOR ::= ('+' | '-' | '!' | '~') ATOM
 ATOM ::= NUM_LIT 
        | ident 
        | '(' EXPR ')' 
        | ident '(' ARG_LIST? ')'
+       | '(' TYPE ')' EXPR
 
 ARG_LIST ::= EXPR (',' EXPR)*
 

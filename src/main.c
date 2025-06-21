@@ -81,8 +81,8 @@ void printTree(ast_node *root) {
       printf("UNOP: ");
 
       switch (root->ast_unary_op.type) {
-        case NUM_NEG:     printf("-\n"); break;
-        case NUM_POS:     printf("+\n"); break;
+        case OP_NEG:      printf("-\n"); break;
+        case OP_POS:      printf("+\n"); break;
         case TRUNC:       printf("cast truncate\n"); break;
         case EXTEND:      printf("cast extend\n"); break;
         case FLOAT_TOINT: printf("cast float to int\n"); break;

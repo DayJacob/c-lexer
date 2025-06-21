@@ -24,6 +24,7 @@ typedef enum {
   OP_MINUS,
   OP_TIMES,
   OP_DIV,
+  OP_MOD,
   OP_GE,
   OP_GT,
   OP_LE,
@@ -34,8 +35,10 @@ typedef enum {
 
 typedef enum {
   OP_LOGNEG,
-  NUM_NEG,
-  NUM_POS,
+  OP_BITNEG,
+  OP_NEG,
+  OP_POS,
+  OP_CAST,
   FLOAT_TOINT,
   INT_TOFLOAT,
   EXTEND,

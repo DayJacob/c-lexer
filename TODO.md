@@ -19,6 +19,9 @@
 - Add parsing support for for
 - Add parsing support for pointer types
 
+## codegen.c
+- Investigate why floating point constants cause so much trouble
+
 ## analysis.c
 - Add sufficient semantic analysis
 

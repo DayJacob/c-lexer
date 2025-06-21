@@ -106,12 +106,22 @@ ast_node *try_parse_param(str buf, dyn_array *toks) {
 ast_node *try_parse_factor(str buf, dyn_array *toks) {
   Token *front = consume();
 
-  if (front->type == PLUS || front->type == MINUS) {
+  if (front->type == PLUS || front->type == MINUS || front->type == NOT ||
+      front->type == TILDE) {
     ast_node *atom = NULL;
     if (!(atom = try_parse_factor(buf, toks)))
       error_expected("atomic expression");
 
-    return create_unop(atom, (front->type == MINUS) ? NUM_NEG : NUM_POS);
+    UnOpType op = OP_POS;
+    switch (front->type) {
+      case PLUS:  op = OP_POS; break;
+      case MINUS: op = OP_NEG; break;
+      case NOT:   op = OP_LOGNEG; break;
+      case TILDE: op = OP_BITNEG; break;
+      default:    break;
+    }
+
+    return create_unop(atom, op);
 
   } else if (isNumberLiteral(front->type))
     return create_num(parseNum(buf, front->start), front->type);
@@ -155,15 +165,34 @@ ast_node *try_parse_factor(str buf, dyn_array *toks) {
   }
 
   else if (front->type == LPAREN) {
-    ast_node *expr = NULL;
-    if (!(expr = try_parse_expr(buf, toks)))
-      error_expected("expression");
+    front = current_token();
+    if (isType(front->type)) {
+      TokenType type = front->type;
+      consume_discard();
 
-    front = consume();
-    if (front->type != RPAREN)
-      error_expected("\')\'");
+      front = consume();
+      if (front->type != RPAREN)
+        error_expected("\')\'");
 
-    return expr;
+      ast_node *expr = NULL;
+      if (!(expr = try_parse_expr(buf, toks)))
+        error_expected("expression");
+
+      ast_node *cast = create_unop(expr, OP_CAST);
+      cast->value = type;
+      return cast;
+
+    } else {
+      ast_node *expr = NULL;
+      if (!(expr = try_parse_expr(buf, toks)))
+        error_expected("expression");
+
+      front = consume();
+      if (front->type != RPAREN)
+        error_expected("\')\'");
+
+      return expr;
+    }
   }
 
   return NULL;
@@ -175,13 +204,22 @@ ast_node *try_parse_term(str buf, dyn_array *toks) {
     error_expected("factor expression");
 
   Token *front = current_token();
-  while (front->type == ASTERISK || front->type == SLASH) {
+  while (front->type == ASTERISK || front->type == SLASH ||
+         front->type == MODULO) {
     consume_discard();
     ast_node *rhs = NULL;
     if (!(rhs = try_parse_factor(buf, toks)))
       error_expected("factor expression");
 
-    lhs = create_binop(lhs, rhs, (front->type == ASTERISK) ? OP_TIMES : OP_DIV);
+    BinOpType op = OP_DIV;
+    switch (front->type) {
+      case ASTERISK: op = OP_TIMES; break;
+      case SLASH:    op = OP_DIV; break;
+      case MODULO:   op = OP_MOD; break;
+      default:       break;
+    }
+
+    lhs = create_binop(lhs, rhs, op);
 
     front = current_token();
   }

@@ -40,6 +40,7 @@ double eval_tree(ast_node *root) {
         case OP_MINUS: return left - right;
         case OP_TIMES: return left * right;
         case OP_DIV:   return (right != 0) ? left / right : 0;
+        case OP_MOD:   return (int)left % (int)right;
 
         case OP_EQEQ:  return left == right;
         case OP_NEQ:   return left != right;
@@ -55,12 +56,22 @@ double eval_tree(ast_node *root) {
       double right = eval_tree(root->ast_unary_op.right);
 
       switch (root->ast_unary_op.type) {
-        case NUM_NEG: return -right;
-        case NUM_POS:
-        default:      return right;
+        case OP_LOGNEG: return !right;
+        case OP_BITNEG: return ~(int)right;
+        case OP_NEG:    return -right;
+        case OP_POS:
+        default:        return right;
       }
     }
     default: return 0.0;
+  }
+}
+
+void printLiteral(TokenType basicType, double num, FILE *out) {
+  switch (basicType) {
+    case FLOAT: fprintf(out, "%f", num); return;
+    case INT:   fprintf(out, "%i", (int)num); return;
+    default:    return;
   }
 }
 
@@ -77,6 +88,7 @@ void generate_llvm(ast_node *root, FILE *out) {
     } break;
 
     case FUNC_DECL: {
+      ssa = 0;
       ret_type = root->value;
       fprintf(out, "define %s @%s(", asLLVMType(ret_type),
               root->ast_func_decl.ident);
@@ -97,8 +109,9 @@ void generate_llvm(ast_node *root, FILE *out) {
       ++ssa;
       fprintf(out, ") {\n");
 
-      fprintf(out, "  %%%lu = alloca %s, align %lu\n", ssa++,
-              asLLVMType(ret_type), getAlignment(ret_type));
+      // TODO: Uncomment for main return value
+      // fprintf(out, "  %%%lu = alloca %s, align %lu\n", ssa++,
+      //        asLLVMType(ret_type), getAlignment(ret_type));
 
       for (size_t i = 0; i < root->ast_func_decl.params->len; ++i) {
         ast_node *param = (ast_node *)root->ast_func_decl.params->el[i];
@@ -114,6 +127,9 @@ void generate_llvm(ast_node *root, FILE *out) {
 
       generate_llvm(root->ast_func_decl.scope, out);
 
+      if (ret_type == VOID)
+        fprintf(out, "  ret void\n");
+
       fprintf(out, "}\n\n");
 
     } break;
@@ -127,6 +143,15 @@ void generate_llvm(ast_node *root, FILE *out) {
 
         } break;
 
+        case VAR_DECL: {
+          Symbol *var = findInSymTable(root->ast_stmt.ident_decl);
+          var->loc = ssa;
+
+          fprintf(out, "  %%%lu = alloca %s, align %lu\n", ssa++,
+                  asLLVMType(var->type), getAlignment(var->type));
+
+        } break;
+
         case VAR_ASSIGN: {
           Symbol *var = findInSymTable(root->ast_stmt.var_assign.ident);
           var->loc = ssa;
@@ -136,8 +161,10 @@ void generate_llvm(ast_node *root, FILE *out) {
 
           if (isComptimeExpr(root->ast_stmt.var_assign.expr)) {
             double num = eval_tree(root->ast_stmt.var_assign.expr);
-            fprintf(out, "  store i32 %i, ptr %%%lu, align 4\n", (int)num,
-                    ssa - 1);
+
+            fprintf(out, "  store %s ", asLLVMType(root->value));
+            printLiteral(asBasicType(root->value), num, out);
+            fprintf(out, ", ptr %%%lu, align 4\n", ssa - 1);
 
             break;
           }
@@ -155,8 +182,10 @@ void generate_llvm(ast_node *root, FILE *out) {
 
           if (isComptimeExpr(root->ast_stmt.var_assign.expr)) {
             double num = eval_tree(root->ast_stmt.var_assign.expr);
-            fprintf(out, "  store i32 %i, ptr %%%lu, align 4\n", (int)num,
-                    ssa - 1);
+
+            fprintf(out, "  store %s ", asLLVMType(root->value));
+            printLiteral(asBasicType(root->value), num, out);
+            fprintf(out, ", ptr %%%lu, align 4\n", ssa - 1);
 
             break;
           }
@@ -245,140 +274,84 @@ void generate_llvm(ast_node *root, FILE *out) {
     } break;
 
     case EXPR_BINOP: {
-      size_t lhs, rhs;
+      double lhs, rhs;
       bool lhs_comptime = false, rhs_comptime = false;
 
       if ((lhs_comptime = isComptimeExpr(root->ast_binary_op.left)))
-        lhs = (int)eval_tree(root->ast_binary_op.left);
+        lhs = eval_tree(root->ast_binary_op.left);
       else
         generate_llvm(root->ast_binary_op.left, out);
 
       if ((rhs_comptime = isComptimeExpr(root->ast_binary_op.right)))
-        rhs = (int)eval_tree(root->ast_binary_op.right);
+        rhs = eval_tree(root->ast_binary_op.right);
       else
         generate_llvm(root->ast_binary_op.right, out);
 
       bool has_comptime_expr = lhs_comptime || rhs_comptime;
 
+      // TODO: Redo and modularize binary operation handling
       switch (root->ast_binary_op.type) {
 
-        case OP_PLUS: {
-          if (asBasicType(root->value) == FLOAT)
-            fprintf(out, "  %%%lu = fadd %s ", ssa, asLLVMType(root->value));
-          else
-            fprintf(out, "  %%%lu = add nsw %s ", ssa, asLLVMType(root->value));
+        case OP_PLUS:
+          fprintf(out, "  %%%lu = %s %s ", ssa,
+                  asBasicType(root->value) == FLOAT ? "fadd" : "add nsw",
+                  asLLVMType(root->value));
+          break;
 
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
+        case OP_MINUS:
+          fprintf(out, "  %%%lu = %s %s ", ssa,
+                  asBasicType(root->value) == FLOAT ? "fsub" : "sub nsw",
+                  asLLVMType(root->value));
+          break;
 
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
+        case OP_TIMES:
+          fprintf(out, "  %%%lu = %s %s ", ssa,
+                  asBasicType(root->value) == FLOAT ? "fmul" : "mul nsw",
+                  asLLVMType(root->value));
+          break;
 
-          ++ssa;
+        case OP_DIV:
+          fprintf(out, "  %%%lu = %s %s ", ssa,
+                  asBasicType(root->value) == FLOAT ? "fdiv" : "sdiv nsw",
+                  asLLVMType(root->value));
+          break;
 
+        case OP_MOD: {
+          assert(asBasicType(root->ast_binary_op.left->value) == INT,
+                 "Left operand of modulo must be integer type");
+          assert(asBasicType(root->ast_binary_op.right->value) == INT,
+                 "Right operand of modulo must be integer type");
+
+          fprintf(out, "  %%%lu = srem %s ", ssa, asLLVMType(root->value));
         } break;
 
-        case OP_MINUS: {
-          fprintf(out, "  %%%lu = sub nsw i32 ", ssa);
-
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
-
-        case OP_TIMES: {
-          fprintf(out, "  %%%lu = mul nsw i32 ", ssa);
-
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
-
-        case OP_DIV: {
-          fprintf(out, "  %%%lu = sdiv i32 ", ssa);
-
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
-
-        case OP_EQEQ: {
+        case OP_EQEQ:
           fprintf(out, "  %%%lu = icmp eq %s ", ssa, asLLVMType(root->value));
+          break;
 
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
-
-        case OP_GT: {
+        case OP_GT:
           fprintf(out, "  %%%lu = icmp sgt %s ", ssa, asLLVMType(root->value));
+          break;
 
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
-
-        case OP_LT: {
+        case OP_LT:
           fprintf(out, "  %%%lu = icmp slt %s ", ssa, asLLVMType(root->value));
-
-          if (!lhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li, ",
-                  (lhs_comptime ? lhs : ssa - (2 - (int)has_comptime_expr)));
-
-          if (!rhs_comptime)
-            fprintf(out, "%%");
-          fprintf(out, "%li\n", (rhs_comptime ? rhs : ssa - 1));
-
-          ++ssa;
-
-        } break;
+          break;
 
         default: break;
       }
+
+      if (!lhs_comptime)
+        fprintf(out, "%%%lu", ssa - (2 - (int)has_comptime_expr));
+      else
+        printLiteral(asBasicType(root->value), lhs, out);
+      fprintf(out, ", ");
+
+      if (!rhs_comptime)
+        fprintf(out, "%%%lu", ssa - 1);
+      else
+        printLiteral(asBasicType(root->value), rhs, out);
+      fprintf(out, "\n");
+      ++ssa;
 
     } break;
 
@@ -386,8 +359,10 @@ void generate_llvm(ast_node *root, FILE *out) {
       generate_llvm(root->ast_unary_op.right, out);
 
       switch (root->ast_unary_op.type) {
-        case NUM_NEG: {
-          fprintf(out, "  %%%lu = sub nsw 0, i32 %%%lu\n", ssa, ssa - 1);
+        case OP_NEG: {
+          fprintf(out, "  %%%lu = %s 0, %s %%%lu\n", ssa,
+                  asBasicType(root->value) == FLOAT ? "fsub" : "sub nsw",
+                  asLLVMType(root->value), ssa - 1);
           ++ssa;
 
         } break;

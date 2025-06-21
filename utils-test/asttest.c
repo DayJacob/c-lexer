@@ -31,9 +31,9 @@ double eval_tree(ast_node *root) {
       double right = eval_tree(root->ast_unary_op.right);
 
       switch (root->ast_unary_op.type) {
-        case NUM_NEG: return -right;
-        case NUM_POS:
-        default:      return right;
+        case OP_NEG: return -right;
+        case OP_POS:
+        default:     return right;
       }
     }
     default: return 0.0;
@@ -41,6 +41,8 @@ double eval_tree(ast_node *root) {
 }
 
 int main(void) {
+  arena_init(&alloc, 1024);
+
   ast_node *root = create_binop(
       create_binop(create_num(4, INT), create_num(3, INT), OP_PLUS),
       create_num(2, INT), OP_TIMES);

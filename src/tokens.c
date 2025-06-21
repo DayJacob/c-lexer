@@ -128,7 +128,7 @@ void tokenize(str buf, dyn_array *toks, size_t len) {
             ++i;
           } else
             ptr->type = MODULO;
-        }
+        } break;
 
         case '{': ptr->type = LBRACE; break;
         case '}': ptr->type = RBRACE; break;
